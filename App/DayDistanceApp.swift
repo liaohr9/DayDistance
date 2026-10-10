@@ -9,6 +9,7 @@ import OSLog
         case .normal: DayDistanceApp.main()
         case .invalid: exit(64)
         case .refresh:
+            BackgroundReminderController.recordExecution()
             let app = NSApplication.shared
             app.setActivationPolicy(.prohibited)
             let timeout = Timer.scheduledTimer(withTimeInterval: 90, repeats: false) { _ in
@@ -60,8 +61,15 @@ struct DayDistanceApp: App {
                 .environment(\.requestReminderPermission, { await reminders.authorizeIfNeeded() })
                 .environment(\.eventReminders, reminders)
                 .frame(minWidth: 640, minHeight: 360)
-                .task { await backgroundReminders.refreshAfterUpdate(); if !store.isLoaded { store.reload() }; installShortcuts(); await syncReminders() }
-                .onChange(of: reminders.statusMessage) { store.reminderMessage = reminders.statusMessage }
+                .task {
+                    if !store.isLoaded { store.reload() }
+                    installShortcuts()
+                    await syncReminders()
+                    await backgroundReminders.refreshAfterUpdate()
+                    publishReminderMessage()
+                }
+                .onChange(of: reminders.statusMessage) { publishReminderMessage() }
+                .onChange(of: backgroundReminders.canRenewReminders) { publishReminderMessage() }
                  .onChange(of: store.events) { Task { await syncReminders() } }
                 .onReceive(Timer.publish(every: 3600, on: .main, in: .common).autoconnect()) { _ in Task { await syncReminders() } }
                 .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)) { _ in Task { await syncReminders() } }
@@ -156,9 +164,14 @@ struct DayDistanceApp: App {
     }
     @MainActor private func syncReminders() async {
         guard store.isLoaded else { return }
+        backgroundReminders.refreshStatus()
         await reminders.sync(events: store.events.filter(\.isActive))
         // Publish after every sync, even if a recurring failure has the same text.
-        if store.isLoaded { store.reminderMessage = reminders.statusMessage }
+        publishReminderMessage()
+    }
+    @MainActor private func publishReminderMessage() {
+        guard store.isLoaded else { return }
+        store.reminderMessage = reminders.displayMessage(backgroundRefreshEnabled: backgroundReminders.canRenewReminders)
     }
     @MainActor private func activateMain() {
         openWindow(id: "main")

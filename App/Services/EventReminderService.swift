@@ -24,7 +24,15 @@ final class SystemEventNotificationClient: EventNotificationClient {
 
 @Observable @MainActor
 final class EventReminderService {
-    private(set) var statusMessage: String?
+    private var problemMessage: String?
+    private var renewalNotice: String?
+    var statusMessage: String? { displayMessage(backgroundRefreshEnabled: false) }
+
+    /// Hide only the informational coverage notice; retain permission and scheduling errors.
+    func displayMessage(backgroundRefreshEnabled: Bool) -> String? {
+        let messages = [problemMessage, backgroundRefreshEnabled ? nil : renewalNotice].compactMap { $0 }
+        return messages.isEmpty ? nil : messages.joined(separator: "\n")
+    }
     private(set) var nextScheduledDates: [UUID: Date] = [:]
     private(set) var dailyCoverageDates: [UUID: Date] = [:]
     @ObservationIgnored private let repositoryProvider: (() throws -> EventRepository)?
@@ -117,7 +125,8 @@ final class EventReminderService {
                 try await Task.sleep(for: .milliseconds(50))
             }
             guard let lease else {
-                statusMessage = L10n.text("另一个进程正在更新提醒，请稍后重试。")
+                renewalNotice = nil
+                problemMessage = L10n.text("另一个进程正在更新提醒，请稍后重试。")
                 return
             }
             // Keep the lease across asynchronous system calls; do not retain stale window data.
@@ -128,9 +137,11 @@ final class EventReminderService {
                 guard generation == expectedGeneration else { return }
                 if try repository.load().filter(\.isActive) == snapshot { return }
             }
-            statusMessage = L10n.text("事件正在持续更改，提醒将在下次刷新时更新。")
+            renewalNotice = nil
+            problemMessage = L10n.text("事件正在持续更改，提醒将在下次刷新时更新。")
         } catch {
-            statusMessage = L10n.format("无法读取或更新提醒：%@。已有提醒已保留。", error.localizedDescription)
+            renewalNotice = nil
+            problemMessage = L10n.format("无法读取或更新提醒：%@。已有提醒已保留。", error.localizedDescription)
         }
     }
 
@@ -191,6 +202,7 @@ final class EventReminderService {
         }
         dailyCoverageDates = coverage
         var messages: [String] = []
+        var notice: String?
         if events.contains(where: { $0.hasEnabledReminders }), !allowed {
             messages.append(status == .notDetermined ? L10n.text("尚未允许通知。请编辑事件并保存已启用的提醒以申请权限。") : L10n.text("通知未获权限，请在系统设置 → 通知 → 日距中开启。"))
         }
@@ -200,14 +212,17 @@ final class EventReminderService {
         if truncated > 0, allowed {
             if events.contains(where: { $0.hasRecurringReminders }) {
                 let hasScheduledRecurring = requests.contains { $0.cadence != .once && actualIDs.contains($0.identifier) }
-                messages.append(hasScheduledRecurring
-                    ? L10n.text("重复提醒已预排有限日期。请查看设置中的覆盖日期；打开应用或启用后台刷新可继续补排。")
-                    : L10n.text("通知队列容量不足，提醒尚未安排。请重新打开日距补排。"))
+                if hasScheduledRecurring {
+                    notice = L10n.text("重复提醒已预排有限日期。请查看设置中的覆盖日期；打开应用或启用后台刷新可继续补排。")
+                } else {
+                    messages.append(L10n.text("通知队列容量不足，提醒尚未安排。请重新打开日距补排。"))
+                }
             } else {
                 messages.append(L10n.format("提醒队列最多 60 条，已优先保留最近提醒；%ld 条暂未安排，请再次打开日距补排。", truncated))
             }
         }
-        statusMessage = messages.isEmpty ? nil : messages.joined(separator: "\n")
+        problemMessage = messages.isEmpty ? nil : messages.joined(separator: "\n")
+        renewalNotice = notice
     }
 
     private func updateAuthorizationDescription(_ status: UNAuthorizationStatus) {

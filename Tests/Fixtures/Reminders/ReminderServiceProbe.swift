@@ -146,10 +146,20 @@ import UserNotifications
         precondition(client.pending[firstDaily.identifier]?.content.body == firstDaily.body)
         precondition(service.dailyCoverageDates[dailyEvent.id] != nil)
         precondition(client.pending.count == 60)
+        precondition(service.displayMessage(backgroundRefreshEnabled: false)?.contains("预排") == true)
+        precondition(service.displayMessage(backgroundRefreshEnabled: true) == nil, "Healthy background hides only the finite-coverage notice")
+        let beforePresentation = client.addCount
+        _ = service.displayMessage(backgroundRefreshEnabled: false)
+        precondition(client.addCount == beforePresentation, "Presenting status must not touch the notification queue")
+        client.failAdds = true
+        await service.sync(events: [dailyEvent])
+        precondition(service.displayMessage(backgroundRefreshEnabled: true)?.contains("安排失败") == true)
+        client.failAdds = false
         client.status = .denied
         await service.sync(events: [dailyEvent])
         precondition(service.dailyCoverageDates.isEmpty)
         precondition(service.statusMessage?.contains("预排") != true)
+        precondition(service.displayMessage(backgroundRefreshEnabled: true)?.contains("权限") == true)
         client.status = .authorized
         await service.sync(events: [])
         precondition(service.dailyCoverageDates.isEmpty)
@@ -217,6 +227,7 @@ import UserNotifications
         await service.sync(events: [dailyEvent])
         precondition(service.dailyCoverageDates.isEmpty && service.nextScheduledDates.isEmpty)
         precondition(service.statusMessage != nil && service.statusMessage?.contains("预排") != true)
+        precondition(service.displayMessage(backgroundRefreshEnabled: true)?.contains("容量") == true, "No-capacity error must remain visible with background enabled")
         precondition(client.permissionCalls == 1)
         print("REMINDER_SERVICE_PASS: permission isolation, replacement, deletion, failed scheduling, stale edits, unrelated preservation, floating timezone, disabled permissions, custom and daily body/coverage, disk snapshot/read failures/concurrent refresh, capacity")
     }

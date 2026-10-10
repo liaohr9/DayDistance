@@ -11,3 +11,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Core policy and storage tests
         run: swift test
+      - name: Safe application replacement
+        run: python3 script/test_install.py
+      - name: Background registration lifecycle
+        run: zsh script/test_background_reminders.sh
+      - name: Notification service and coverage presentation
+        run: zsh Tests/Fixtures/Reminders/test.sh

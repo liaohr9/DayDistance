@@ -54,6 +54,9 @@ assert plistlib.loads((app / "Contents/Info.plist").read_bytes())["CFBundleIdent
 shutil.rmtree(app)
 PY
 if [[ "$MODE" == --install-only ]]; then exit 0; fi
+# Finish LaunchServices cleanup before launching: another -f registration after
+# cold-start recovery can invalidate the background task's new BTM identifier.
+trap - EXIT
 case "$MODE" in
  --debug) lldb -- "$APP_BUNDLE/Contents/MacOS/DayDistance";;
  --logs) open "$APP_BUNDLE"; /usr/bin/log stream --info --style compact --predicate 'process == "DayDistance"';;

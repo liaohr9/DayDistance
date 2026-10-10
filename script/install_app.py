@@ -75,6 +75,8 @@ class MacRuntime:
                 else: raise RuntimeError("Old widget is still running; update deferred")
             except ProcessLookupError:
                 pass
+    def unregister(self, app):
+        subprocess.run([REGISTER, "-u", str(app)], check=True)
     def register(self, app):
         subprocess.run([REGISTER, "-f", str(app)], check=True)
         subprocess.run(["/usr/bin/pluginkit", "-a", str(app / "Contents/PlugIns/DayDistanceWidget.appex")], check=True)
@@ -143,7 +145,15 @@ def install(source, destination, backups, runtime):
             runtime.stop_extension(destination)
             if runtime.main_running():
                 raise RuntimeError("DayDistance is running; update deferred")
-            if destination.exists(): os.replace(destination, previous)
+            if destination.exists():
+                # Remove the old bundle identity before replacing its inode/signature.
+                # Otherwise BTM may retain its previous launch signing constraints.
+                try:
+                    runtime.unregister(destination)
+                    os.replace(destination, previous)
+                except Exception:
+                    runtime.register(destination)
+                    raise
             try:
                 os.replace(candidate, destination)
                 replaced = True

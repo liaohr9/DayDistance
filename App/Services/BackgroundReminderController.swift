@@ -15,6 +15,7 @@ enum BackgroundReminderInvocation {
     var status: BackgroundReminderStatus { get }
     func register() async throws
     func unregister() async throws
+    func confirmExecution(since: Date) async throws -> Bool
     func openSettings()
 }
 
@@ -31,6 +32,18 @@ enum BackgroundReminderInvocation {
     }
     func register() async throws { try service.register() }
     func unregister() async throws { try await service.unregister() }
+    func confirmExecution(since: Date) async throws -> Bool {
+        // BTM can invalidate the previous app record asynchronously after replacement.
+        // RunAtLoad must produce a new receipt, not merely report SMAppService.enabled.
+        let deadline = Date().addingTimeInterval(35)
+        repeat {
+            UserDefaults.standard.synchronize()
+            if let execution = UserDefaults.standard.object(forKey: BackgroundReminderController.executionKey) as? Date,
+               execution >= since { return true }
+            try await Task.sleep(for: .milliseconds(500))
+        } while Date() < deadline
+        return false
+    }
     func openSettings() { SMAppService.openSystemSettingsLoginItems() }
 }
 
@@ -38,10 +51,18 @@ enum BackgroundReminderInvocation {
     private(set) var status: BackgroundReminderStatus = .off
     private(set) var isUpdating = false
     private(set) var errorMessage: String?
+    private var hasConfirmedExecution = false
+    static let executionKey = "backgroundReminderLastExecution"
+    static func recordExecution() {
+        UserDefaults.standard.set(Date(), forKey: executionKey)
+        UserDefaults.standard.synchronize()
+    }
     @ObservationIgnored private let client: any BackgroundReminderClient
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let buildVersion: String
+    @ObservationIgnored private var refreshedThisLaunch = false
     private static let registeredBuildKey = "backgroundReminderRegisteredBuild"
+    private static let repairPendingKey = "backgroundReminderRepairPending"
     init(client: (any BackgroundReminderClient)? = nil, defaults: UserDefaults = .standard,
          buildVersion: String = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "development") {
         self.defaults = defaults
@@ -51,7 +72,9 @@ enum BackgroundReminderInvocation {
     }
     var isRequested: Bool { status == .enabled || status == .requiresApproval }
     var isEnabled: Bool { status == .enabled }
+    var canRenewReminders: Bool { isEnabled && hasConfirmedExecution && !isUpdating && errorMessage == nil }
     var statusDescription: String {
+        if isUpdating { return L10n.text("正在验证后台刷新…") }
         switch status {
         case .off: return L10n.text("未启用后台刷新")
         case .enabled: return L10n.text("已允许后台刷新")
@@ -66,35 +89,61 @@ enum BackgroundReminderInvocation {
         defer { isUpdating = false; refreshStatus() }
         do {
             if enabled {
-                if !isRequested { try await client.register() }
+                if !isRequested { try await registerAndConfirm() }
                 if client.status == .enabled || client.status == .requiresApproval {
                     defaults.set(buildVersion, forKey: Self.registeredBuildKey)
+                    defaults.removeObject(forKey: Self.repairPendingKey)
                 }
-            } else if isRequested {
-                try await client.unregister()
+            } else {
+                // Explicit opt-out must cancel recovery even after a failed register.
+                if isRequested { try await client.unregister() }
+                hasConfirmedExecution = false
                 defaults.removeObject(forKey: Self.registeredBuildKey)
+                defaults.removeObject(forKey: Self.repairPendingKey)
             }
+            refreshedThisLaunch = true
             errorMessage = nil
         } catch { errorMessage = L10n.format("无法更改后台刷新：%@", error.localizedDescription) }
     }
-    // SMAppService requires registration to be renewed when the executable changes.
-    // Only renew a service the user already requested; never opt in during launch.
+    // Replacing an app can invalidate its BTM identifier without changing its build
+    // number. Rebuild an enabled registration once per cold launch, not just upgrades.
+    // A persisted repair flag allows an interrupted unregister/register to recover.
+    // Never opt in an untouched, disabled, or approval-pending service.
     func refreshAfterUpdate() async {
         refreshStatus()
-        guard isRequested, !isUpdating,
-              defaults.string(forKey: Self.registeredBuildKey) != buildVersion else { return }
+        guard !refreshedThisLaunch, !isUpdating else { return }
+        refreshedThisLaunch = true
+        let pendingRepair = defaults.bool(forKey: Self.repairPendingKey)
+        guard status == .enabled || (pendingRepair && status != .requiresApproval) else { return }
         isUpdating = true
         defer { isUpdating = false; refreshStatus() }
         do {
-            try await client.unregister()
-            try await client.register()
+            defaults.set(true, forKey: Self.repairPendingKey)
+            if isRequested { try await client.unregister() }
+            try await registerAndConfirm()
             if client.status == .enabled || client.status == .requiresApproval {
                 defaults.set(buildVersion, forKey: Self.registeredBuildKey)
+                defaults.removeObject(forKey: Self.repairPendingKey)
             }
             errorMessage = nil
         } catch {
             errorMessage = L10n.format("无法更改后台刷新：%@", error.localizedDescription)
         }
+    }
+    private func registerAndConfirm() async throws {
+        hasConfirmedExecution = false
+        for attempt in 0..<2 {
+            let started = Date()
+            try await client.register()
+            if client.status == .requiresApproval { return }
+            if client.status == .enabled, try await client.confirmExecution(since: started) {
+                hasConfirmedExecution = true
+                return
+            }
+            if attempt == 0 { try await client.unregister() }
+        }
+        throw NSError(domain: "DayDistance.BackgroundReminder", code: 1,
+                      userInfo: [NSLocalizedDescriptionKey: L10n.text("后台任务未能启动，请重新打开应用重试。")])
     }
     func openSettings() { client.openSettings() }
 }

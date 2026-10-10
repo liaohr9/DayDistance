@@ -47,6 +47,10 @@ Permission is requested only when saving an enabled reminder. Settings show curr
 
 Background renewal is optional and off by default. Enable it and approve the macOS background item if required to renew the finite queue hourly after the app quits. Sleep, shutdown, Focus, permission and OS scheduling may affect delivery. End-to-end delivery and ongoing background behavior need additional testing across supported systems.
 
+The main window hides the finite-coverage notice when background renewal is enabled, actual startup has been confirmed, and registration recovery has no reported error. It remains visible when background renewal is off or awaiting approval. Permission, scheduling and capacity errors remain visible. Each cold launch rebuilds an enabled background registration once, including after same-version replacement; interrupted recovery is retried on the next launch. Disabled background items are never opted in automatically.
+
+Replacing an ad hoc development build can still encounter an AMFI launch-signing constraint rejection even while the system switch is enabled. The 1.8.2 source verifies execution, retries and retains failure messages. Recovery of every unsigned preview is not guaranteed; the observed constraint failure still needs verification with Developer ID signing.
+
 ## Keyboard and data
 
 `⌘N` new · `⌘F` search · `⌘E` edit · `⌘D` duplicate · `⌘⇧A` archive · `⌘⇧R` restore. Use Command/Shift-click for selection and the usual Undo/Redo shortcuts.

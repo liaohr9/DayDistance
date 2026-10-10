@@ -35,6 +35,7 @@ class Runtime:
     def verify(self, app): pass
     def main_running(self): return self.running
     def stop_extension(self, app): pass
+    def unregister(self, app): pass
     def register(self, app):
         if self.reject_registration and (app / "Contents/marker").read_text() == "new":
             raise RuntimeError("registration rejected")
@@ -111,6 +112,23 @@ class InstallSafetyTests(unittest.TestCase):
         with patch.object(installer.subprocess, "run", return_value=subprocess.CompletedProcess([], 2)):
             with self.assertRaisesRegex(RuntimeError, "process"):
                 runtime.main_running()
+    def test_old_registration_removed_before_replacement(self):
+        removed = []
+        class UpdateRuntime(Runtime):
+            def unregister(inner, app):
+                removed.append((app, (app / "Contents/marker").read_text()))
+        self.install(UpdateRuntime())
+        self.assertEqual(removed, [(self.destination, "old")])
+    def test_unregister_failure_preserves_old_app(self):
+        class BlockedRuntime(Runtime):
+            def unregister(inner, app): raise RuntimeError("unregister blocked")
+        with self.assertRaisesRegex(RuntimeError, "unregister blocked"):
+            self.install(BlockedRuntime())
+        self.assertEqual((self.destination / "Contents/marker").read_text(), "old")
+    def test_unregister_targets_only_old_bundle(self):
+        with patch.object(installer.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as command:
+            installer.MacRuntime().unregister(self.destination)
+        self.assertEqual(command.call_args.args[0], [installer.REGISTER, "-u", str(self.destination)])
     def test_mixed_signing_modes_are_rejected(self):
         values = [subprocess.CompletedProcess([], 0),
                   subprocess.CompletedProcess([], 0, stdout="", stderr="Signature=adhoc\nTeamIdentifier=not set\n"),
