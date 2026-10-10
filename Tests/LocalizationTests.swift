@@ -5,12 +5,18 @@ import XCTest
 
 final class LocalizationTests: XCTestCase {
     private func languageBundle(_ language: String) throws -> Bundle {
-                #if SWIFT_PACKAGE
+        #if SWIFT_PACKAGE
         let resourceBundle = L10n.bundle
         #else
         let resourceBundle = Bundle(for: LocalizationTests.self)
         #endif
-        let url = try XCTUnwrap(resourceBundle.url(forResource: language, withExtension: "lproj"))
+        // Catalog tests inspect every shipped language, independent of preferred
+        // localization or SwiftPM's casing of language-directory names.
+        let resources = try XCTUnwrap(resourceBundle.resourceURL)
+        let directories = try FileManager.default.contentsOfDirectory(at: resources, includingPropertiesForKeys: nil)
+        let url = try XCTUnwrap(directories.first {
+            $0.lastPathComponent.caseInsensitiveCompare(language + ".lproj") == .orderedSame
+        })
         return try XCTUnwrap(Bundle(url: url))
     }
 
