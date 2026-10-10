@@ -1,0 +1,8 @@
+// Independent macOS Developer ID distribution; signing is performed by the owner.
+#include "Signing.xcconfig"
+CODE_SIGN_IDENTITY = Developer ID Application
+CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO
+ENABLE_HARDENED_RUNTIME = YES
+DAYDISTANCE_STORAGE_MODE = shared
+// macOS-only team-prefixed group; requires a real DEVELOPMENT_TEAM.
+DAYDISTANCE_APP_GROUP = $(DEVELOPMENT_TEAM).local.daydistance.shared

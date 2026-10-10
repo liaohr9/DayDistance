@@ -1,0 +1,21 @@
+# Build products and local state
+.build*/
+build*/
+*.noindex/
+DerivedData/
+**/xcuserdata/
+**/*.xcuserstate
+**/.DS_Store
+**/__pycache__/
+*.app/
+*.dmg
+*.zip
+*.xcarchive/
+*.dSYM/
+*.log
+Validation/
+Config/Signing.local.xcconfig
+*.p12
+*.mobileprovision
+*.key
+.env

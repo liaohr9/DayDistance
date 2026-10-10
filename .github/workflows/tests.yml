@@ -1,0 +1,13 @@
+name: Core tests
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  core:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Core policy and storage tests
+        run: swift test

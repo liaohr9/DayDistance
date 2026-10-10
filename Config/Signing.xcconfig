@@ -1,0 +1,5 @@
+// Local development defaults. For a developer team, set automatic signing and Apple Development.
+CODE_SIGN_STYLE = Automatic
+CODE_SIGN_IDENTITY = Apple Development
+DAYDISTANCE_STORAGE_MODE = shared
+DAYDISTANCE_APP_GROUP = group.local.daydistance.shared

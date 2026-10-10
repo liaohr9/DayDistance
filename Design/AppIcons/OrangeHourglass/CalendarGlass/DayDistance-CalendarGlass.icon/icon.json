@@ -1,0 +1,109 @@
+{
+  "fill-specializations" : [
+    {
+      "value" : {
+        "automatic-gradient" : "extended-srgb:0.91373,0.47451,0.32941,1.00000"
+      }
+    },
+    {
+      "appearance" : "dark",
+      "value" : {
+        "solid" : "extended-srgb:0.12941,0.13725,0.15294,1.00000"
+      }
+    }
+  ],
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "extended-srgb:0.91373,0.51765,0.35686,1.00000"
+              }
+            }
+          ],
+          "image-name" : "Sand.svg",
+          "name" : "Sand"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.12
+      },
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
+      }
+    },
+    {
+      "layers" : [
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "extended-srgb:0.95686,0.96471,0.97647,1.00000"
+              }
+            }
+          ],
+          "image-name" : "Glass.svg",
+          "name" : "Glass"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.3
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.82
+      }
+    },
+    {
+      "layers" : [
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "extended-srgb:0.87059,0.88235,0.90196,1.00000"
+              }
+            }
+          ],
+          "image-name" : "Bindings.svg",
+          "name" : "Bindings"
+        },
+        {
+          "hidden" : true,
+          "image-name" : "Dates.svg",
+          "name" : "Dates"
+        },
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "extended-srgb:0.76471,0.78039,0.80000,1.00000"
+              }
+            }
+          ],
+          "image-name" : "Calendar.svg",
+          "name" : "Calendar"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.2
+      },
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : "shared"
+  }
+}
