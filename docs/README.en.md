@@ -6,7 +6,7 @@
 <p><a href="https://github.com/liaohr9/DayDistance/releases/tag/v1.8.1-preview.1">Download preview</a> · <a href="../README.md">中文</a> · <a href="BUILDING.md">Build guide</a></p>
 </div>
 
-![Native event list using fictional examples](images/events.png)
+![Native event list with six fictional examples in English](images/events-en.png)
 
 > **1.8.1 is an unnotarized developer preview.** The universal DMG and App ZIP use ad hoc signing, without a Developer ID certificate or Apple notarization. macOS may block downloaded builds. This is not a notarized production release; wait for a notarized version or build from source if blocked. No system-security changes are required or recommended.
 

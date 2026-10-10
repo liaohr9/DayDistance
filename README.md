@@ -14,7 +14,7 @@
 
 <br />
 
-![日距的原生事件列表，展示旅行、马拉松、生日和学习纪念日](docs/images/events.png)
+![日距的原生事件列表，展示六个虚构事件及倒计时与正计时](docs/images/events.png)
 
 > **当前发布：1.8.1 开发预览版。** 提供 Apple Silicon 与 Intel 双架构 DMG / App ZIP。使用本地 ad hoc 签名，**尚无 Developer ID 签名及 Apple 公证**；从互联网下载后可能被 macOS 阻止运行。这不是已公证正式安装版。若系统阻止打开，请等待公证版本或自行从源码构建，无需关闭系统安全保护。
 

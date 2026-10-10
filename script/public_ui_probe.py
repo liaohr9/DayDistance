@@ -5,6 +5,7 @@ from pathlib import Path
 p = Path(__file__).resolve().parent.parent
 args = argparse.ArgumentParser()
 args.add_argument('--language', choices=['zh-Hans','en'], default='zh-Hans')
+args.add_argument('--capture-ready', action='store_true', help='Compact light showcase, fictional events only')
 args.add_argument('--showcase', action='store_true', help='Public screenshots with fictional events only')
 args.add_argument('--empty', action='store_true')
 args.add_argument('--custom-reminder', action='store_true', help='Disposable event with a custom reminder, no notifications sent')
@@ -57,9 +58,23 @@ with tempfile.TemporaryDirectory(prefix='daydistance-public-', suffix='.noindex'
         return repository
     }
 }\n'''
-    if args.showcase:
+    if args.showcase or args.capture_ready:
         source = source.replace('let events = [CountdownEvent', 'let originalEvents = [CountdownEvent')
         source = source.replace('try! repository.save(events, replacing: [])', 'let date = { (y: Int, m: Int, d: Int) in Calendar.current.date(from: DateComponents(year: y, month: m, day: d, hour: 9))! }\n            let events = [\n                CountdownEvent(title:"京都之旅", targetDate:date(2026,11,8), isAllDay:true, calendarDay:CalendarDay(date:date(2026,11,8)), isPinned:true, symbol:"airplane", colorKey:"amber"),\n                CountdownEvent(title:"第一场马拉松", targetDate:date(2026,11,15), isAllDay:true, calendarDay:CalendarDay(date:date(2026,11,15)), symbol:"flag", colorKey:"sage"),\n                CountdownEvent(title:"我的生日", targetDate:date(2026,12,24), isAllDay:true, calendarDay:CalendarDay(date:date(2026,12,24)), repeatYearly:true, symbol:"gift", colorKey:"violet"),\n                CountdownEvent(title:"开始学习钢琴", targetDate:date(2024,5,20), includesStartDay:true, isAllDay:true, calendarDay:CalendarDay(date:date(2024,5,20)), symbol:"sun.max", colorKey:"blue")\n            ]\n            try! repository.save(events, replacing: [])')
+    if args.capture_ready:
+        source = source.replace('let initialStore = EventStore(repository: PublicFeatureQA.repository, automaticallyLoad: false)', 'NSApplication.shared.appearance = NSAppearance(named: .aqua)\n        let initialStore = EventStore(repository: PublicFeatureQA.repository, automaticallyLoad: false)')
+        source = source.replace('.defaultSize(width: 800, height: 520)', '.defaultSize(width: 840, height: 410)')
+        source = source.replace('CountdownEvent(title:"开始学习钢琴"', 'CountdownEvent(title:"第一次上班", targetDate:date(2025,3,17), isAllDay:true, calendarDay:CalendarDay(date:date(2025,3,17)), symbol:"briefcase", colorKey:"rose"),\n                CountdownEvent(title:"资格考试", targetDate:date(2026,10,26), isAllDay:true, calendarDay:CalendarDay(date:date(2026,10,26)), symbol:"graduationcap", colorKey:"blue"),\n                CountdownEvent(title:"开始学习钢琴"')
+    if args.language == 'en' and (args.showcase or args.capture_ready):
+        for chinese, english in {
+            '京都之旅': 'Kyoto Trip',
+            '第一场马拉松': 'My First Marathon',
+            '我的生日': 'My Birthday',
+            '第一次上班': 'First Day at Work',
+            '资格考试': 'Certification Exam',
+            '开始学习钢琴': 'Learning Piano',
+        }.items():
+            source = source.replace(f'title:"{chinese}"', f'title:"{english}"')
     if args.permission_refresh:
         (root/'permission-state.txt').write_text('denied')
         source = source.replace('func authorizationStatus() async -> UNAuthorizationStatus { .notDetermined }', '\n    var pending: [String: UNNotificationRequest] = [:]\n    func authorizationStatus() async -> UNAuthorizationStatus {\n        let file = URL(fileURLWithPath: CommandLine.arguments[1]).appendingPathComponent("permission-state.txt")\n        let value = try? String(contentsOf: file, encoding: .utf8)\n        return value?.trimmingCharacters(in: .whitespacesAndNewlines) == "authorized" ? .authorized : .denied\n    }')
