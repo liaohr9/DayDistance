@@ -33,7 +33,7 @@ Before upgrading, export your events, save/cancel current editing, and quit the 
 
 ## Widgets
 
-![Production widget views in a native showcase](images/widgets.png)
+![English small, medium, and dark widget views in a native showcase](images/widgets-en.png)
 
 This image uses production SwiftUI widget content with fictional events in a native showcase window. It is not a desktop placement screenshot or an integration-test claim.
 
