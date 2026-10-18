@@ -26,6 +26,8 @@ def main():
     if args.preview:
         if '-preview.' not in args.tag or info.get('DayDistanceStorageMode')!='local':raise ValueError('Preview must have explicit preview tag and local storage')
     else:
+        if info.get('SUFeedURL') == 'https://raw.githubusercontent.com/liaohr9/DayDistance/main/appcast.xml':
+            raise ValueError('This feed upgrades local-storage previews only. Formal App Group migration and a separate feed must be accepted first')
         import prepare_release
         result=prepare_release.checked(app,args.team or '',args.group or '', 'distribution')
         if not result['distributable']:raise ValueError('Developer ID, notarization and shared storage validation required')

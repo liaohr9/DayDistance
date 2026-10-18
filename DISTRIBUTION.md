@@ -100,3 +100,5 @@ python3 script/prepare_update.py /Applications/日距.app --preview \
 经人工发布授权后，先上传 ZIP 到对应 GitHub Release，再将生成的 appcast.xml 原样提交仓库根目录。上传完成和远程 feed 签名验证通过之前，不宣称线上自动更新已启用。每次递增 CFBundleVersion，旧安装包不能复用新签名或版本；修改签名后的 XML/ZIP 必须重新生成。正常更新不应修改 bundle ID、数据路径或 EdDSA 公钥。
 
 本地 ad hoc 沙盒测试不替代互联网下载后的 Gatekeeper、Developer ID、公证与正式 App Group 升级验收。保留正式发布门槛。
+
+当前 `main/appcast.xml` 只用于 local 存储的预览升级。`prepare_update.py` 拒绝把正式 shared/App Group 包推入这个更新源，避免自动升级后事件不可见。正式版须先完成旧数据迁移现场验收并配置独立更新源，不能仅凭正式签名通过就混发。
