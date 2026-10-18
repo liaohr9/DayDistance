@@ -75,6 +75,36 @@ struct ContentView: View {
     private var isPresentingModal: Bool { store.editingEvent != nil || pendingDelete != nil || store.isTransferring || transferMessage != nil || store.isShowingBackups || shareEvent != nil || smartStore.isPresentingModal }
 
     var body: some View {
+        eventMonitoringContent
+        .onOpenURL { url in
+            guard !isPresentingModal else { return }
+            smartSelection = nil
+            filter = EventFilter.all
+            search = ""
+            store.open(url)
+            selectedIDs = store.editingEvent.map { [$0.event.id] } ?? []
+        }
+        .sheet(item: $store.editingEvent) { session in
+            EventEditor(session: session, store: store).appLanguage()
+        }
+        .alert(deletingPermanently ? L10n.text("永久删除所选事件？") : L10n.text("删除事件？"), isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
+            Button("取消", role: .cancel) { pendingDelete = nil }
+            Button(L10n.text(deletingPermanently ? "永久删除" : "移到回收站"), role: .destructive) {
+                guard let events = pendingDelete else { return }
+                let operation: EventBatchOperation = deletingPermanently ? .permanentlyDelete : .trash
+                pendingDelete = nil; updateHistoryModal()
+                if store.batch(operation, events: events) { clearSelection() }
+            }
+        } message: {
+            Text(deletingPermanently ? L10n.text("所选事件将从回收站移除。自动备份中的副本仍会保留。") : L10n.format("%ld 个事件将移到回收站，可随时恢复。", pendingDelete?.count ?? 0))
+        }
+    }
+
+    private var eventActions: EventActions {
+        EventActions(hasSelection: store.isLoaded && !selectedEvents.isEmpty && !isPresentingModal, canEdit: store.isLoaded && selectedEvent?.isActive == true && !isPresentingModal, canCreate: store.isLoaded && !isPresentingModal, canTransfer: store.isLoaded && !isPresentingModal, canArchive: store.isLoaded && !selectedEvents.isEmpty && selectedEvents.allSatisfy { $0.isActive } && !isPresentingModal, canRestore: store.isLoaded && !selectedEvents.isEmpty && selectedEvents.allSatisfy { !$0.isActive } && !isPresentingModal, archive: archiveSelected, restore: restoreSelected, canDuplicate: store.isLoaded && selectedEvent != nil && selectedEvent?.lifecycle != .trashed && !isPresentingModal, duplicate: duplicateSelected, canShare: store.isLoaded && selectedEvent != nil && !isPresentingModal, copySummary: copySelectedSummary, share: shareSelected, canSearch: store.isLoaded && !isPresentingModal, create: createEvent, edit: editSelected, delete: deleteSelected, importEvents: beginImport, exportEvents: beginExport, searchEvents: focusSearch)
+    }
+
+    private var smartListContent: some View {
         navigationContent
         .onAppear { smartStore.reload() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
@@ -95,7 +125,11 @@ struct ContentView: View {
         .onChange(of: pendingDelete) { updateHistoryModal() }
         .onChange(of: transferMessage) { updateHistoryModal() }
         .sheet(isPresented: $store.isShowingBackups) { BackupsView(store: store).appLanguage() }
-        .focusedSceneValue(\.eventActions, EventActions(hasSelection: store.isLoaded && !selectedEvents.isEmpty && !isPresentingModal, canEdit: store.isLoaded && selectedEvent?.isActive == true && !isPresentingModal, canCreate: store.isLoaded && !isPresentingModal, canTransfer: store.isLoaded && !isPresentingModal, canArchive: store.isLoaded && !selectedEvents.isEmpty && selectedEvents.allSatisfy { $0.isActive } && !isPresentingModal, canRestore: store.isLoaded && !selectedEvents.isEmpty && selectedEvents.allSatisfy { !$0.isActive } && !isPresentingModal, archive: archiveSelected, restore: restoreSelected, canDuplicate: store.isLoaded && selectedEvent != nil && selectedEvent?.lifecycle != .trashed && !isPresentingModal, duplicate: duplicateSelected, canShare: store.isLoaded && selectedEvent != nil && !isPresentingModal, copySummary: copySelectedSummary, share: shareSelected, canSearch: store.isLoaded && !isPresentingModal, create: createEvent, edit: editSelected, delete: deleteSelected, importEvents: beginImport, exportEvents: beginExport, searchEvents: focusSearch))
+        .focusedSceneValue(\.eventActions, eventActions)
+    }
+
+    private var eventMonitoringContent: some View {
+        smartListContent
         .fileImporter(isPresented: $isImporting, allowedContentTypes: [.json]) { result in
             store.isTransferring = false
             do {
@@ -124,7 +158,7 @@ struct ContentView: View {
             if let cursor = vimNavigation.cursor, !store.events.contains(where: { $0.id == cursor }) { vimNavigation = VimListNavigation() }
         }
         .onChange(of: store.editingEvent?.id) {
-            if let session = store.editingEvent, session.original == nil { smartSelection = nil; filter = .all; search = "" }
+            if let session = store.editingEvent, session.original == nil { smartSelection = nil; filter = EventFilter.all; search = "" }
         }
         .onChange(of: filter) { clearSelection() }
         .onChange(of: search) { clearSelection() }
@@ -134,28 +168,6 @@ struct ContentView: View {
             .receive(on: RunLoop.main)) { _ in calendarReference = Date() }
         .onReceive(NotificationCenter.default.publisher(for: .NSSystemClockDidChange)) { _ in calendarReference = Date() }
         .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
-        .onOpenURL { url in
-            guard !isPresentingModal else { return }
-            smartSelection = nil
-            filter = .all
-            search = ""
-            store.open(url)
-            selectedIDs = store.editingEvent.map { [$0.event.id] } ?? []
-        }
-        .sheet(item: $store.editingEvent) { session in
-            EventEditor(session: session, store: store).appLanguage()
-        }
-        .alert(deletingPermanently ? L10n.text("永久删除所选事件？") : L10n.text("删除事件？"), isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
-            Button("取消", role: .cancel) { pendingDelete = nil }
-            Button(L10n.text(deletingPermanently ? "永久删除" : "移到回收站"), role: .destructive) {
-                guard let events = pendingDelete else { return }
-                let operation: EventBatchOperation = deletingPermanently ? .permanentlyDelete : .trash
-                pendingDelete = nil; updateHistoryModal()
-                if store.batch(operation, events: events) { clearSelection() }
-            }
-        } message: {
-            Text(deletingPermanently ? L10n.text("所选事件将从回收站移除。自动备份中的副本仍会保留。") : L10n.format("%ld 个事件将移到回收站，可随时恢复。", pendingDelete?.count ?? 0))
-        }
     }
 
     private var navigationContent: some View {
