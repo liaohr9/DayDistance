@@ -1,3 +1,8 @@
+## 1.13.1 — language resource compatibility
+
+- Resolve the actual en/zh-Hans resource directories regardless of preferred localization or directory casing.
+- Cover lowercase zh-hans.lproj resources, fixing two failures exposed by GitHub-hosted macOS CI.
+
 ## 1.13.0 — in-app updates
 
 - Add Settings → Software Update and a manual Check for Updates command.

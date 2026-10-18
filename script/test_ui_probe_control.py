@@ -24,7 +24,6 @@ class FaultControlTests(unittest.TestCase):
         cls.writer = str(Path(cls.build.name) / "writer")
         project = Path(__file__).resolve().parent.parent
         env = os.environ.copy()
-        env.setdefault("DEVELOPER_DIR", "/Volumes/haoran 1/Applications/Xcode.app/Contents/Developer")
         subprocess.run(["/usr/bin/xcrun", "swiftc", "-parse-as-library", str(project / "Shared/Core/L10n.swift"), str(project / "Shared/Core/Event.swift"), str(project / "Shared/Core/EventDates.swift"),
                         str(project / "Shared/Core/EventRepository.swift"), str(project / "Shared/Core/ExportDestinationPolicy.swift"), str(project / "Tests/Fixtures/UIWriterProbe.swift"),
                         "-o", cls.writer], env=env, check=True, timeout=90)

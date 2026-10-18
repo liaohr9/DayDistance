@@ -16,7 +16,7 @@ args.add_argument('--trace-colors', action='store_true', help='Diagnostic: log n
 args.add_argument('--trace-sort', action='store_true', help='Diagnostic: log native menu lifecycle and focus')
 args.add_argument('--freeze-timeline', action='store_true', help='Diagnostic: pause production TimelineView updates on disposable data')
 args = args.parse_args()
-env = dict(os.environ, DEVELOPER_DIR='/Volumes/haoran 1/Applications/Xcode.app/Contents/Developer')
+env = dict(os.environ)
 with tempfile.TemporaryDirectory(prefix='daydistance-public-', suffix='.noindex') as folder:
     root = Path(folder)
     app = root/'日距公开版验证.app'; contents = app/'Contents'; (contents/'MacOS').mkdir(parents=True)

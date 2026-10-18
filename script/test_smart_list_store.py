@@ -4,7 +4,6 @@ import os, platform, subprocess, tempfile, shutil
 from pathlib import Path
 p = Path(__file__).resolve().parent.parent
 env = dict(os.environ)
-env.setdefault('DEVELOPER_DIR', '/Volumes/haoran 1/Applications/Xcode.app/Contents/Developer')
 sources = list((p/'Shared/Core').glob('*.swift')) + list((p/'Shared/Presentation').glob('*.swift')) + [p/'Shared/Platform/SharedContainer.swift'] + list((p/'App/Stores').glob('*.swift')) + list((p/'App/Views').glob('*.swift')) + list((p/'App/Services').glob('*.swift')) + [p/'Tests/Fixtures/SmartListStoreProbe.swift']
 with tempfile.TemporaryDirectory(suffix='.noindex') as root:
     frozen = Path(root)/'sources'

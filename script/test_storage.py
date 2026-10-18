@@ -12,7 +12,6 @@ import time
 def main():
     project = Path(__file__).resolve().parent.parent
     environment = os.environ.copy()
-    environment.setdefault("DEVELOPER_DIR", "/Volumes/haoran 1/Applications/Xcode.app/Contents/Developer")
     sources = [str(s.relative_to(project)) for s in sorted((project / "Shared/Core").glob("*.swift"))]
     sources += ["App/Services/EventHistoryUndoManager.swift", "Shared/Platform/SharedContainer.swift",
                 "App/Stores/EventStore.swift", "Tests/Fixtures/StorageProbe.swift"]

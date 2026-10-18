@@ -10,7 +10,6 @@ import tempfile
 def main():
     project = Path(__file__).resolve().parent.parent
     env = os.environ.copy()
-    env.setdefault("DEVELOPER_DIR", "/Volumes/haoran 1/Applications/Xcode.app/Contents/Developer")
     sources = sorted((project / "Shared/Core").glob("*.swift"))
     sources += [project / "Tests/Fixtures/WidgetDisplayUIProbe.swift", project / "Shared/Platform/SharedContainer.swift"]
     sources += sorted((project / "Shared/Presentation").glob("*.swift"))

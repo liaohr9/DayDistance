@@ -2,7 +2,7 @@
 import os,subprocess,tempfile
 from pathlib import Path
 p=Path(__file__).resolve().parent.parent
-env=dict(os.environ,DEVELOPER_DIR=os.environ.get('DEVELOPER_DIR','/Volumes/haoran 1/Applications/Xcode.app/Contents/Developer'))
+env=dict(os.environ)
 sources=sorted((p/'Shared/Core').glob('*.swift'))+[p/'Shared/Platform/SharedContainer.swift',p/'Shared/Presentation/DayEntry.swift',p/'Widget/EventIntent.swift',p/'Tests/Fixtures/WidgetSmartListProbe.swift']
 with tempfile.TemporaryDirectory(suffix='.noindex') as folder:
  binary=Path(folder)/'smart-widget-probe'

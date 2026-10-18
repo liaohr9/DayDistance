@@ -3,7 +3,7 @@ set -euo pipefail
 MODE="${1:-run}"
 case "$MODE" in run|--verify|--debug|--logs|--telemetry|--build-only|--install-only) ;; *) echo 'usage: build_and_run.sh [--build-only|--install-only|--verify|--debug|--logs|--telemetry]' >&2; exit 2;; esac
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export DEVELOPER_DIR="${DEVELOPER_DIR:-/Volumes/haoran 1/Applications/Xcode.app/Contents/Developer}"
+export DEVELOPER_DIR="${DEVELOPER_DIR:-$(xcode-select -p)}"
 if [[ ! -d "$DEVELOPER_DIR" ]]; then echo "Xcode not found: $DEVELOPER_DIR" >&2; exit 1; fi
 CONFIGURATION="${CONFIGURATION:-DebugLocal}"
 BUILD_DIR="$ROOT_DIR/build.noindex"
