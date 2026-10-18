@@ -4,16 +4,16 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>日距</title>
         <item>
-            <title>1.13.1</title>
-            <pubDate>Sun, 18 Oct 2026 23:57:49 +0800</pubDate>
-            <sparkle:version>40</sparkle:version>
-            <sparkle:shortVersionString>1.13.1</sparkle:shortVersionString>
+            <title>1.13.2</title>
+            <pubDate>Mon, 19 Oct 2026 00:38:46 +0800</pubDate>
+            <sparkle:version>41</sparkle:version>
+            <sparkle:shortVersionString>1.13.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/liaohr9/DayDistance/releases/download/v1.13.1-preview.1/DayDistance-1.13.1-macOS-arm64-preview.zip" length="8968734" type="application/octet-stream" sparkle:edSignature="QPcGFeE7qOQEFzEl4p40DZ0YHLrymqyl0BuQHgq3aQC1ZMiGGyNoaKgGK+INsT2fHSvWMMVOBE6WoNjXVkj9DA=="></enclosure>
+            <enclosure url="https://github.com/liaohr9/DayDistance/releases/download/v1.13.2-preview.1/DayDistance-1.13.2-macOS-arm64-preview.zip" length="8971987" type="application/octet-stream" sparkle:edSignature="s1az19alYmMIxcznkI0gDz8OuIZdsATCV0GswwM521Q+aXHqwLWihfMiN2b2dnTlVYPWj0qg/lscDr6fIcEMDQ=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: pmaEeLDKLqvoCKuG9Qj+FZQ98xB+HsaUYFRDK6ivGU7YEPjCzU8YNyr4iO9c4V2RK6zAxOlVMmp4rKJNjK3GCw==
+edSignature: 1Or+O9ujPeoViZOrn6OWVRZn4fpq/18qS3SdHd72K7YJJMJZvNv5WjALBHj2Tc2/J8ocKtnm4qLSFEQ2BTH+AA==
 length: 1158
 -->
