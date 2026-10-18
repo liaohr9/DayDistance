@@ -16,6 +16,7 @@ struct WidgetDisplayProbeView: View {
     @State private var manual = false
     @State private var missing = false
     @State private var largeRows = 6
+    @State private var eventCount = 2
     @State private var pageIndex = 0
     @State private var filtered = false
     @State private var format = EventDisplayFormat.days
@@ -54,6 +55,7 @@ struct WidgetDisplayProbeView: View {
                 }.frame(width: 250)
             }.toggleStyle(.checkbox)
             HStack {
+                Stepper("测试事件：\(eventCount) 条", value: $eventCount, in: 1...15).frame(width: 170)
                 Picker("大号每页条数", selection: $largeRows) { ForEach(5...10, id: \.self) { Text("\($0)").tag($0) } }.frame(width: 190)
                 Picker("预览页面", selection: $pageIndex) { ForEach(0..<3, id: \.self) { Text("\($0 + 1)").tag($0) } }.frame(width: 170)
                 Toggle("工作标签、按距离、跳过第一条", isOn: $filtered)
@@ -69,16 +71,16 @@ struct WidgetDisplayProbeView: View {
         }.padding(20)
     }
     private func sample(family: WidgetFamily, single: Bool, title: String) -> some View {
-        let data = events.map { event -> CountdownEvent in
+        let data = events.prefix(eventCount).map { event -> CountdownEvent in
             var value = event; value.displayFormat = format
             if inactive { value.lifecycle = .archived }; return value
         }
-        let selection = WidgetManualSelection(enabled: manual, slotIDs: [missing ? UUID().uuidString : data[2].id.uuidString, data[0].id.uuidString, data[1].id.uuidString])
+        let selection = WidgetManualSelection(enabled: manual, slotIDs: [missing ? UUID().uuidString : events[2].id.uuidString, events[0].id.uuidString, events[1].id.uuidString])
         return VStack(alignment: .leading) {
             Text(title).font(.caption).foregroundStyle(.secondary)
-            DayWidgetContent(entry: DayEntry(date: now, events: data, explicitID: single ? data[1].id.uuidString : nil, error: nil, displayOptions: options, manualSelection: selection, filter: filtered ? WidgetFilter(scope: .upcoming, includedTags: ["工作"], sort: .nearest, prioritizePinned: false, skip: 1) : WidgetFilter(), pageSize: largeRows, pagingID: "11111111-1111-1111-1111-111111111111", pageIndex: pageIndex), family: family)
+            DayWidgetContent(entry: DayEntry(date: now, events: data, explicitID: single ? data[min(1, data.count - 1)].id.uuidString : nil, error: nil, displayOptions: options, manualSelection: selection, filter: filtered ? WidgetFilter(scope: .upcoming, includedTags: ["工作"], sort: .nearest, prioritizePinned: false, skip: 1) : WidgetFilter(), pageSize: largeRows, pagingID: "11111111-1111-1111-1111-111111111111", pageIndex: pageIndex), family: family)
                 .padding(16)
-                .frame(width: family == .systemSmall ? 164 : 344, height: family == .systemLarge ? 360 : 164)
+                .frame(width: family == .systemSmall ? 164 : 344, height: family == .systemLarge ? 344 : 164)
                 .background(.background, in: RoundedRectangle(cornerRadius: 24))
         }
     }

@@ -83,9 +83,16 @@ struct DayWidgetContent: View {
     }
     private var largeOverview: some View {
         let page = entry.page
+        let capacity = min(max(entry.pageSize, 5), 10)
         return VStack(alignment: .leading, spacing: 0) {
-            ForEach(page.events) { event in
-                overviewRow(event, compact: entry.pageSize > 7).frame(maxHeight: .infinity)
+            GeometryReader { geometry in
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(page.events) { event in
+                        overviewRow(event, compact: capacity > 7)
+                            .frame(height: geometry.size.height / CGFloat(capacity))
+                    }
+                    Spacer(minLength: 0)
+                }
             }
             if page.count > 1, let id = entry.pagingID {
                 HStack {
