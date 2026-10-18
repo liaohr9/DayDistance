@@ -4,7 +4,6 @@ import os, platform, subprocess, tempfile
 from pathlib import Path
 root = Path(__file__).resolve().parent.parent
 env = dict(os.environ)
-env.setdefault("DEVELOPER_DIR", "/Volumes/haoran 1/Applications/Xcode.app/Contents/Developer")
 with tempfile.TemporaryDirectory(suffix=".noindex") as folder:
     binary = Path(folder) / "maintenance-probe"
     sources = list((root / "Shared/Core").glob("*.swift")) + [root / "App/Services/WidgetMaintenance.swift", root / "Tests/Fixtures/WidgetMaintenanceProbe.swift"]
