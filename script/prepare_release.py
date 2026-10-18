@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Read-only Developer ID release gate; never signs or uploads."""
 import argparse
+import base64
 import json
 import os
 from pathlib import Path
@@ -11,6 +12,8 @@ import tempfile
 import zipfile
 
 IDENTIFIERS = ["local.daydistance.mac", "local.daydistance.mac.widget"]
+SPARKLE_BASE = "Contents/Frameworks/Sparkle.framework/Versions/B/"
+SPARKLE_CODE = [SPARKLE_BASE + path for path in ["Sparkle", "Autoupdate", "Updater.app/Contents/MacOS/Updater", "XPCServices/Installer.xpc/Contents/MacOS/Installer"]]
 MACHO_MAGIC = {b"\xfe\xed\xfa\xce", b"\xce\xfa\xed\xfe", b"\xfe\xed\xfa\xcf", b"\xcf\xfa\xed\xfe", b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca", b"\xca\xfe\xba\xbf", b"\xbf\xba\xfe\xca"}
 
 
@@ -28,9 +31,9 @@ def evaluate(facts, team, group, stage):
             if bundle.get(field) is not True: errors.append(label + ": " + field + " check failed")
         if bundle.get("team") != team: errors.append(label + ": team mismatch")
         if bundle.get("storage") != "shared" or bundle.get("group") != group: errors.append(label + ": shared storage/group mismatch")
-        if set(bundle.get("architectures", [])) != {"arm64", "x86_64"}: errors.append(label + ": universal architectures required")
+        if set(bundle.get("architectures", [])) != {"arm64"}: errors.append(label + ": Apple Silicon arm64 only required")
         if bundle.get("minimum_os") != "14.0": errors.append(label + ": minimum macOS changed")
-        if bundle.get("binary_minimum_os") != {"arm64": "14.0", "x86_64": "14.0"}:
+        if bundle.get("binary_minimum_os") != {"arm64": "14.0"}:
             errors.append(label + ": binary deployment targets must match macOS 14")
         for field in ["version", "build"]:
             if not bundle.get(field) or bundle.get(field) != bundles[0].get(field): errors.append(label + ": " + field + " mismatch")
@@ -41,9 +44,17 @@ def evaluate(facts, team, group, stage):
                 (selected_files or entitlements.get("com.apple.security.files.user-selected.read-only"))):
             errors.append(label + ": user-selected file permission mismatch")
         if entitlements.get("com.apple.security.application-groups") != [group]: errors.append(label + ": entitlement group mismatch")
-        forbidden = [key for key in entitlements if "temporary-exception" in key or (key.startswith("com.apple.security.cs.") and entitlements[key])]
+        allowed_mach = index == 0 and facts.get("updater", {}).get("configured") and entitlements.get("com.apple.security.temporary-exception.mach-lookup.global-name") == ["local.daydistance.mac-spks", "local.daydistance.mac-spki"]
+        forbidden = [key for key in entitlements if ("temporary-exception" in key and not (allowed_mach and key == "com.apple.security.temporary-exception.mach-lookup.global-name")) or (key.startswith("com.apple.security.cs.") and entitlements[key])]
         if entitlements.get("com.apple.security.get-task-allow"): forbidden.append("com.apple.security.get-task-allow")
         if forbidden: errors.append(label + ": forbidden entitlements " + ", ".join(sorted(forbidden)))
+    updater = facts.get("updater", {})
+    if updater.get("required"):
+        code = updater.get("code", [])
+        if not updater.get("configured") or {item.get("path") for item in code} != set(SPARKLE_CODE): errors.append("Updater configuration or helper inventory mismatch")
+        for item in code:
+            if not all(item.get(field) for field in ["verified", "runtime", "timestamp"]) or item.get("architectures") != ["arm64"]:
+                errors.append("Sparkle helper signing/runtime/architecture failed: " + item.get("path", "unknown"))
     if not facts.get("nested_valid"): errors.append("Nested code signature validation failed")
     if facts.get("unexpected_code"): errors.append("Unexpected nested code or escaping links: " + ", ".join(facts["unexpected_code"]))
     if facts.get("debug_files"): errors.append("Debug/preview binaries present: " + ", ".join(facts["debug_files"]))
@@ -100,6 +111,24 @@ def inspect(app, team, stage):
         identified_requirement = requirement + ' and identifier "' + IDENTIFIERS[len(facts["bundles"])] + '"'
         record["verified"] = matching and run(["/usr/bin/codesign", "--verify", "--strict", "--all-architectures", "-R", identified_requirement, str(bundle)]).returncode == 0
         facts["bundles"].append(record)
+    main_info = plistlib.loads((app / "Contents/Info.plist").read_bytes())
+    expected_bundles = {widget}
+    if main_info.get("SUFeedURL"):
+        try: key_valid = len(base64.b64decode(main_info.get("SUPublicEDKey", ""), validate=True)) == 32
+        except (ValueError, TypeError): key_valid = False
+        configured = key_valid and main_info.get("SUFeedURL") == "https://raw.githubusercontent.com/liaohr9/DayDistance/main/appcast.xml" and main_info.get("SUEnableInstallerLauncherService") is True and main_info.get("SUVerifyUpdateBeforeExtraction") is True and main_info.get("SURequireSignedFeed") is True and main_info.get("SUAllowsAutomaticUpdates") is False
+        code = []
+        expected_bundles |= {app / "Contents/Frameworks/Sparkle.framework", app / (SPARKLE_BASE + "Updater.app"), app / (SPARKLE_BASE + "XPCServices/Installer.xpc")}
+        for relative in SPARKLE_CODE:
+            binary = app / relative
+            expected_executables.append(binary)
+            details = run(["/usr/bin/codesign", "-dvvv", str(binary)])
+            text = (details.stdout + details.stderr).decode(errors="replace")
+            code.append({"path": relative, "architectures": run(["/usr/bin/lipo", "-archs", str(binary)]).stdout.decode().split(),
+                "verified": run(["/usr/bin/codesign", "--verify", "--strict", "-R", requirement, str(binary)]).returncode == 0,
+                "runtime": bool(re.search(r"flags=0x[0-9a-f]+\([^\n)]*\bruntime\b", text)), "timestamp": bool(re.search(r"^Timestamp=.+", text, re.MULTILINE))})
+        facts["updater"] = {"required": True, "configured": configured, "code": code}
+    expected_executables = {path.resolve() for path in expected_executables}
     facts["nested_valid"] = run(["/usr/bin/codesign", "--verify", "--deep", "--strict", "--all-architectures", str(app)]).returncode == 0
     for path in app.rglob("*"):
         relative = str(path.relative_to(app))
@@ -107,8 +136,8 @@ def inspect(app, team, stage):
         if path.name.endswith(".debug.dylib") or path.name == "__preview.dylib": facts["debug_files"].append(relative)
         if path.is_file():
             with path.open("rb") as handle: magic = handle.read(4)
-            if magic in MACHO_MAGIC and path not in expected_executables: facts["unexpected_code"].append(relative)
-        elif path.suffix in {".app", ".appex", ".framework", ".xpc"} and path != widget:
+            if magic in MACHO_MAGIC and path.resolve() not in expected_executables: facts["unexpected_code"].append(relative)
+        elif path.suffix in {".app", ".appex", ".framework", ".xpc"} and path not in expected_bundles:
             facts["unexpected_code"].append(relative)
     if stage == "distribution":
         facts["stapled"] = run(["/usr/bin/xcrun", "stapler", "validate", str(app)]).returncode == 0

@@ -132,10 +132,12 @@ final class EventReminderService {
             // Keep the lease across asynchronous system calls; do not retain stale window data.
             defer { withExtendedLifetime(lease) {} }
             for _ in 0..<5 {
-                let snapshot = try repository.load().filter(\.isActive)
+                let snapshot = try await Task.detached(priority: .utility) { try repository.load().filter(\.isActive) }.value
+                guard generation == expectedGeneration else { return }
                 await applyPlan(events: snapshot, generation: expectedGeneration)
                 guard generation == expectedGeneration else { return }
-                if try repository.load().filter(\.isActive) == snapshot { return }
+                let current = try await Task.detached(priority: .utility) { try repository.load().filter(\.isActive) }.value
+                if current == snapshot { return }
             }
             renewalNotice = nil
             problemMessage = L10n.text("事件正在持续更改，提醒将在下次刷新时更新。")
@@ -151,7 +153,11 @@ final class EventReminderService {
         updateAuthorizationDescription(status)
         let allowed = status == .authorized || status == .provisional
         let zone = timeZone()
-        let plan = ReminderPolicy.plan(events: events, now: now(), timeZone: zone)
+        let planningDate = now()
+        let plan = await Task.detached(priority: .utility) {
+            ReminderPolicy.plan(events: events, now: planningDate, timeZone: zone)
+        }.value
+        guard generation == expectedGeneration else { return }
         let pending = await client.pendingRequests()
         guard generation == expectedGeneration else { return }
         // Also respect slots occupied by other notification features in this app.
@@ -163,6 +169,7 @@ final class EventReminderService {
             $0.hasPrefix(ReminderPolicy.identifierPrefix) && !desiredIDs.contains($0)
         }
         client.removePending(identifiers: obsolete)
+        let existingByID = Dictionary(pending.map { ($0.identifier, $0) }, uniquingKeysWith: { _, last in last })
         var failures = 0
         for reminder in requests {
             guard generation == expectedGeneration else { return }
@@ -181,6 +188,8 @@ final class EventReminderService {
                 components.timeZone = zone
             }
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            if let existing = existingByID[reminder.identifier],
+               existing.content.isEqual(content), existing.trigger?.isEqual(trigger) == true { continue }
             do { try await client.add(UNNotificationRequest(identifier: reminder.identifier, content: content, trigger: trigger)) }
             catch { failures += 1 }
         }

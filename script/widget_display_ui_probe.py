@@ -10,10 +10,9 @@ import tempfile
 def main():
     project = Path(__file__).resolve().parent.parent
     env = os.environ.copy()
-    env.setdefault("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Developer")
-    sources = [project / "Shared/Core/L10n.swift", project / "Shared/Core/Event.swift", project / "Shared/Core/EventDates.swift", project / "Shared/Core/DayCounter.swift",
-               project / "Shared/Core/WidgetPolicy.swift", project / "Tests/Fixtures/WidgetDisplayUIProbe.swift"]
-    sources += [project / "Shared/Core/EventDisplayFormatter.swift", project / "Shared/Core/WidgetManualSelection.swift"]
+    env.setdefault("DEVELOPER_DIR", "/Volumes/haoran 1/Applications/Xcode.app/Contents/Developer")
+    sources = sorted((project / "Shared/Core").glob("*.swift"))
+    sources += [project / "Tests/Fixtures/WidgetDisplayUIProbe.swift", project / "Shared/Platform/SharedContainer.swift"]
     sources += sorted((project / "Shared/Presentation").glob("*.swift"))
     with tempfile.TemporaryDirectory(prefix="daydistance-widget-ui-", suffix=".noindex") as temporary:
         app = Path(temporary) / "WidgetDisplayQA.app"

@@ -1,4 +1,58 @@
-# 更新记录
+## 1.13.0 — in-app updates
+
+- Add Settings → Software Update and a manual Check for Updates command.
+- Check the GitHub-hosted signed feed daily, with an optional automatic-check switch.
+- Ask before download/install; validate feed and archive signatures, install and relaunch through Sparkle2.10.0.
+- Protect event/rule drafts and file operations; keep the app, widget and updater helpers arm64 only.
+- Publish signed update artifacts separately; preview builds remain unnotarized.
+
+# Changelog
+
+## 1.12.1 source — Apply language immediately
+
+- Choosing Chinese or English now refreshes open windows, event and Smart List sheets, Help, menu bar content and app commands without restarting.
+- Preserve editor identity, unsaved fields, date/time and text undo. Refresh the stable native sort menu labels without rebuilding its items while tracking.
+- Publish the chosen language immediately, request widget timelines and refresh localized reminder scheduling. Failed language storage keeps the current preference and interface together.
+- Native application/window/clipboard commands retain responder-chain actions and shortcuts, with one Settings entry and localized labels.
+- 175 core tests and native regression checks pass; actual UI verification uses disposable drafts and the installed sandboxed app. System-provided services and widget configuration hosts remain controlled by macOS. No new public binary release.
+
+## 1.12.0 source — App language
+
+- Choose Simplified Chinese or English in General settings; native menus, windows and forms switch at the next normal launch. No Follow System option.
+- Widgets and background reminders read the last applied language rather than a pending choice. User content and regional date/time conventions are preserved.
+- Reorder widget configuration fields and preserve legacy appearance switches with an explicit Custom default. All 20 parameter identifiers/types remain compatible.
+- 172 core tests, native regression suite and arm64 builds pass. Real installed-app language switching verified; system-hosted widget configuration and desktop language pixels remain separate checks. No new public binary release.
+
+## 1.11.0 source — Smart Lists
+
+- Photos-style named rule lists with all/any matching, live counts, sort/pinning/skip, sidebar navigation, duplicate and confirmed delete.
+- Widgets choose reusable lists and Standard / Compact / Custom appearance. All 17 legacy parameter identifiers and existing selections remain intact.
+- Independent CAS storage and 20 rule snapshots. Explicit recovery quarantines damaged bytes, checks confirmation fingerprints, and refuses newer schema versions.
+- Time-sensitive selection/cursor reconciliation and absolute-distance midpoint refresh. Event data schema remains unchanged.
+- No new public binary release; Developer ID signing, notarization, and real desktop Smart List acceptance remain separate gates.
+
+## 1.10.0 source — settings redesign
+
+- Build 33: event-boundary list refresh, row-only clocks, precomputed sort dates and lightweight next-reminder previews. Reuse identical pending notifications and move reminder planning/reads off the main actor.
+- Simpler editor: More Options reveals existing tags/yearly rules; one color menu keeps swatches and the system wheel. Help is grouped by topic, with widget checks centralized in Settings.
+- Correct annual custom previews when a 365-day advance passes two expired candidates. Local preview builds now use optimized compilation; Debug remains unoptimized.
+
+- App Settings: four native sidebar categories, remembered selection, shared data and widget-check entry points. A compact single-row title bar keeps native window controls and removes the redundant sidebar button.
+- Event editor: Basics / Reminder / Display with one draft and fixed actions.
+- Widget configuration: conditional controls by size and mode; advanced and legacy active filters stay editable. Existing identifiers and values are preserved.
+- Adds isolated settings routing/modal guards and a check of Xcode-extracted widget summary metadata.
+- No new public binary release. Developer ID signing and notarization remain separate release requirements.
+
+
+## 1.9.0 — 标签、筛选与大号组件（源码更新）
+
+- 新增标签输入、去重和搜索；保留未带标签的旧事件。
+- 原生 macOS 色轮自由选色，保留五种彩色预设；RGB 颜色在应用和组件一致显示。
+- 每个组件独立配置日期范围、包含全部／任一标签、排除标签、排序、置顶优先和跳过 N 条。
+- 分页位置由已持久化的配置稳定确定，避免系统不保存隐藏随机标识导致回到首页。相同筛选、排序与每页条数的组件同步页码；不同条件各自保存页码。
+- 大号组件每页 5–10 条及分页按钮；中号自动概览沿用三条，手动槽位不受自动筛选影响。
+- 写入 schema 7、读取 schema 1–7；启动不改写旧数据。保存后不支持用 1.8 或更早版本编辑。
+- 当前下载 Release 仍为 1.8.1 开发预览；没有新增已公证发行包。
 
 ## 1.8.2 — 后台登记恢复（源码更新）
 

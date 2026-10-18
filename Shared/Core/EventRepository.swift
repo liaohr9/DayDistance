@@ -13,19 +13,12 @@ struct EventRepository: Sendable {
     func exportSnapshot() throws -> Data { try Self.encodeSnapshot(load()) }
     func exportSnapshot(to destination: URL, protecting protectedURLs: [URL] = []) throws {
         let dataFiles = [fileURL] + protectedURLs
-        let protected = dataFiles + dataFiles.flatMap { [$0.appendingPathExtension("lock"), $0.appendingPathExtension("reminders.lock")] }
-        let resolved = destination.standardizedFileURL.resolvingSymlinksInPath()
-        let attributes = try? FileManager.default.attributesOfItem(atPath: resolved.path)
-        for url in protected {
-            let target = url.standardizedFileURL.resolvingSymlinksInPath()
-            let targetAttributes = try? FileManager.default.attributesOfItem(atPath: target.path)
-            let sameFile = attributes?[.systemFileNumber] as? NSNumber != nil
-                && attributes?[.systemFileNumber] as? NSNumber == targetAttributes?[.systemFileNumber] as? NSNumber
-                && attributes?[.systemNumber] as? NSNumber == targetAttributes?[.systemNumber] as? NSNumber
-            guard resolved != target, !sameFile else { throw EventError.protectedExportDestination }
-        }
+        let protected = dataFiles + ExportDestinationPolicy.smartListFiles(beside: dataFiles)
+        let directories = ExportDestinationPolicy.smartListBackupDirectories(beside: dataFiles)
+        try ExportDestinationPolicy.validate(destination, protectedFiles: protected, protectedDirectories: directories)
         try withWriteLock {
             // Read after the save panel closes, and coordinate with our writers.
+            try ExportDestinationPolicy.validate(destination, protectedFiles: protected, protectedDirectories: directories)
             try exportSnapshot().write(to: destination, options: .atomic)
         }
     }
@@ -65,7 +58,7 @@ struct EventRepository: Sendable {
         decoder.dateDecodingStrategy = .deferredToDate
         // Reject future envelopes before interpreting their event fields.
         let schema = try decoder.decode(Schema.self, from: data)
-        guard (1...6).contains(schema.schemaVersion) else { throw EventError.unsupportedVersion }
+        guard (1...7).contains(schema.schemaVersion) else { throw EventError.unsupportedVersion }
         let envelope = try decoder.decode(Envelope.self, from: data)
         guard Set(envelope.events.map(\.id)).count == envelope.events.count else { throw EventError.duplicateID }
         for event in envelope.events { _ = try event.validated(now: event.updatedAt) }
@@ -100,6 +93,6 @@ struct EventRepository: Sendable {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .deferredToDate
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try encoder.encode(Envelope(schemaVersion: 6, events: events))
+        return try encoder.encode(Envelope(schemaVersion: 7, events: events))
     }
 }

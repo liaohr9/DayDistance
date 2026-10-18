@@ -17,3 +17,7 @@ jobs:
         run: zsh script/test_background_reminders.sh
       - name: Notification service and coverage presentation
         run: zsh Tests/Fixtures/Reminders/test.sh
+      - name: Settings routing and modal guards
+        run: python3 script/test_settings.py
+      - name: Update settings and editing protection
+        run: python3 script/test_updates.py

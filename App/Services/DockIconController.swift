@@ -97,5 +97,85 @@ enum DockIconAppearance: String, CaseIterable, Identifiable {
 
 @MainActor final class DayDistanceAppDelegate: NSObject, NSApplicationDelegate {
     let dockIcons = DockIconController()
-    func applicationDidFinishLaunching(_ notification: Notification) { dockIcons.start() }
+    private var menuObservers: [NSObjectProtocol] = []
+    private var menuRefreshScheduled = false
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        dockIcons.start()
+        for name in [L10n.languageDidChange, NSMenu.didBeginTrackingNotification, NSMenu.didAddItemNotification, NSMenu.didChangeItemNotification] {
+            menuObservers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                MainActor.assumeIsolated {
+                    // Menu tracking uses a nested run loop. Refresh its actual
+                    // menu synchronously; a deferred main-queue pass is too late.
+                    if let menu = note.object as? NSMenu, NativeMenuLanguage.belongsToMainMenu(menu) {
+                        NativeMenuLanguage.refresh(menu)
+                    }
+                    guard let self, !self.menuRefreshScheduled else { return }
+                    self.menuRefreshScheduled = true
+                    // SwiftUI rebuilds its commands first. Coalesce menu changes
+                    // into one pass, keeping actions and keyboard shortcuts.
+                    DispatchQueue.main.async {
+                        NativeMenuLanguage.refresh(NSApp.mainMenu)
+                        self.menuRefreshScheduled = false
+                    }
+                }
+            })
+        }
+    }
+}
+
+@MainActor enum NativeMenuLanguage {
+    private static var isRefreshing = false
+    static func belongsToMainMenu(_ menu: NSMenu) -> Bool {
+        func contains(_ root: NSMenu) -> Bool {
+            root === menu || root.items.contains { $0.submenu.map(contains) ?? false }
+        }
+        guard let main = NSApp.mainMenu else { return false }
+        return contains(main) || (!menu.title.isEmpty && main.items.contains { $0.submenu?.title == menu.title })
+    }
+    static func refresh(_ menu: NSMenu?) {
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
+        update(menu)
+    }
+    private static func update(_ menu: NSMenu?) {
+        guard let menu else { return }
+        let chinese = L10n.currentLanguage == .simplifiedChinese
+        let groups = [("文件", "File"), ("编辑", "Edit"), ("显示", "View"), ("窗口", "Window"), ("帮助", "Help"), ("服务", "Services")]
+        let app = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
+            ?? ProcessInfo.processInfo.processName
+        let actions: [String: (String, String)] = [
+            "orderFrontStandardAboutPanel:": ("关于 \(app)", "About \(app)"),
+            "showSettingsWindow:": ("设置…", "Settings…"),
+            "hide:": ("隐藏 \(app)", "Hide \(app)"),
+            "hideOtherApplications:": ("隐藏其他", "Hide Others"),
+            "unhideAllApplications:": ("全部显示", "Show All"),
+            "terminate:": ("退出 \(app)", "Quit \(app)"),
+            "performClose:": ("关闭", "Close"), "closeAll:": ("全部关闭", "Close All"),
+            "cut:": ("剪切", "Cut"), "copy:": ("拷贝", "Copy"), "paste:": ("粘贴", "Paste"),
+            "pasteAndMatchStyle:": ("粘贴并匹配样式", "Paste and Match Style"),
+            "delete:": ("删除", "Delete"), "selectAll:": ("全选", "Select All"),
+            "performMiniaturize:": ("最小化", "Minimize"), "performZoom:": ("缩放", "Zoom"),
+            "arrangeInFront:": ("前置全部窗口", "Bring All to Front"),
+            "toggleFullScreen:": ("切换全屏幕", "Toggle Full Screen"),
+            "toggleSidebar:": ("切换边栏", "Toggle Sidebar")
+        ]
+        let labels = Array(actions.values) + [("设置…", "Settings…")]
+        for item in menu.items {
+            if let submenu = item.submenu {
+                if let pair = groups.first(where: { item.title == $0.0 || item.title == $0.1 }) {
+                    let title = chinese ? pair.0 : pair.1
+                    if item.title != title { item.title = title }
+                    if submenu.title != title { submenu.title = title }
+                }
+                update(submenu)
+            }
+            if let action = item.action, NSStringFromSelector(action) != "makeKeyAndOrderFront:", !(item.representedObject is NSWindow),
+               let pair = actions[NSStringFromSelector(action)] ?? labels.first(where: { item.title == $0.0 || item.title == $0.1 }) {
+                let title = chinese ? pair.0 : pair.1
+                if item.title != title { item.title = title }
+            }
+        }
+    }
 }

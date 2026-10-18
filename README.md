@@ -7,7 +7,7 @@
     <a href="https://github.com/liaohr9/DayDistance/releases"><img src="https://img.shields.io/badge/macOS-14%2B-24292f?logo=apple&logoColor=white" alt="macOS 14+" /></a>
     <img src="https://img.shields.io/badge/SwiftUI-native-F05138?logo=swift&logoColor=white" alt="Native SwiftUI" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-4A7C69" alt="MIT license" /></a>
-    <a href="https://github.com/liaohr9/DayDistance/releases/tag/v1.8.1-preview.1"><img src="https://img.shields.io/badge/release-developer_preview-D69B51" alt="Developer preview" /></a>
+    <a href="https://github.com/liaohr9/DayDistance/releases/tag/v1.13.0-preview.1"><img src="https://img.shields.io/badge/release-developer_preview-D69B51" alt="Developer preview" /></a>
   </p>
   <p><a href="#下载">下载</a> · <a href="#一分钟开始">快速开始</a> · <a href="#桌面小组件">桌面小组件</a> · <a href="#从源码构建">源码构建</a> · <a href="docs/README.en.md">English</a></p>
 </div>
@@ -16,42 +16,45 @@
 
 ![日距的原生事件列表，展示六个虚构事件及倒计时与正计时](docs/images/events.png)
 
-> **当前发布：1.8.1 开发预览版。** 提供 Apple Silicon 与 Intel 双架构 DMG / App ZIP。使用本地 ad hoc 签名，**尚无 Developer ID 签名及 Apple 公证**；从互联网下载后可能被 macOS 阻止运行。这不是已公证正式安装版。若系统阻止打开，请等待公证版本或自行从源码构建，无需关闭系统安全保护。
+> **当前发布：1.13.0（39）开发预览版。** 提供 Apple Silicon（arm64）App ZIP，支持应用内检查、下载和安装更新。使用本地 ad hoc 签名，**尚无 Developer ID 签名及 Apple 公证**；从互联网下载后可能被 macOS 阻止运行。这不是已公证正式安装版。若系统阻止打开，请等待公证版本或自行从源码构建，无需关闭系统安全保护。
+
+## 应用语言
+
+在“设置 → 通用 → 语言”选择 **简体中文** 或 **English**，选择后立即生效，无需重启，未保存的编辑草稿保持原样。事件名称和标签保持原文，日期与时钟保留地区格式。1.13.0 预览包已包含此功能；更早版本需手动安装一次。
 
 ## 为重要的日子，留一个位置
 
 旅行出发还有几天、坚持一件事已经多久、下一个生日什么时候到——日距把这些信息放在一个简洁的原生窗口与桌面小组件中。
 
-没有账号、订阅、广告或云同步。事件留在这台 Mac 上；你可以随时导出完整备份。
+没有账号、订阅、广告或云同步。事件留在这台 Mac 上；你可以随时导出事件备份。
 
 | 能力 | 你可以做什么 |
 | :--- | :--- |
 | **倒计时与正计时** | 自动显示“还有 / 已过 / 今天”；正计时可选择当天算第 0 天或第 1 天。 |
 | **不同的时间表达** | 按天、周 / 天、年 / 月 / 天、周年显示；支持全天事件与年度纪念日。 |
-| **桌面小组件** | 小号聚焦一个日子，中号展示最多三个事件；自动概览或手动选择与排序。 |
+| **桌面小组件** | 小号聚焦一个日子，中号最多三个事件，大号每页五至十个；每个组件独立筛选、排序和翻页。 |
 | **提醒** | 当天、提前一天、自定义提前天数与时间；每日、每满一个月、每满一年分别设置。 |
-| **轻量管理** | 置顶、搜索、排序、多选；批量归档、移入回收站、恢复和复制为新事件。 |
+| **轻量管理** | 标签、原生色轮自选颜色、置顶、搜索、排序、多选；批量归档、移入回收站、恢复和复制为新事件。 |
 | **数据保护** | 完整 JSON 导入 / 导出、最多 20 份自动本地快照、恢复预览、撤销与重做。 |
 | **原生操作** | macOS 快捷键、可选 Vim 键位、中英文、可选菜单栏入口、Dock 图标外观。 |
 
 ## 下载
 
-[**打开 Release 下载页 →**](https://github.com/liaohr9/DayDistance/releases/tag/v1.8.1-preview.1)
+[**打开 Release 下载页 →**](https://github.com/liaohr9/DayDistance/releases/tag/v1.13.0-preview.1)
 
 | 文件 | 用途 |
 | :--- | :--- |
-| [DayDistance-1.8.1-macOS-universal-preview.dmg](https://github.com/liaohr9/DayDistance/releases/download/v1.8.1-preview.1/DayDistance-1.8.1-macOS-universal-preview.dmg) | 磁盘映像，内含「日距.app」与 Applications 快捷方式。 |
-| [DayDistance-1.8.1-macOS-universal-preview.zip](https://github.com/liaohr9/DayDistance/releases/download/v1.8.1-preview.1/DayDistance-1.8.1-macOS-universal-preview.zip) | 压缩的 App，适合手动放到 Applications。 |
-| [SHA256SUMS.txt](https://github.com/liaohr9/DayDistance/releases/download/v1.8.1-preview.1/SHA256SUMS.txt) | 下载完整性校验。 |
+| [DayDistance-1.13.0-macOS-arm64-preview.zip](https://github.com/liaohr9/DayDistance/releases/download/v1.13.0-preview.1/DayDistance-1.13.0-macOS-arm64-preview.zip) | 压缩的 App，适合手动放到 Applications。 |
+| [SHA256SUMS.txt](https://github.com/liaohr9/DayDistance/releases/download/v1.13.0-preview.1/SHA256SUMS.txt) | 下载完整性校验。 |
 
-**要求：**macOS 14 或更新系统；Apple Silicon / Intel。该版本在 macOS 27、Xcode 27 上构建与现场验证；较早受支持系统仍需进一步实测。桌面小组件需要 macOS 14+。
+**源码构建要求：**macOS 14 或更新系统；仅 Apple Silicon（arm64）。本次包内应用、小组件和更新器全部为 arm64，不再包含 Intel 支持。该版本在 macOS 27、Xcode 27 上构建与现场验证；较早受支持系统仍需进一步实测。桌面小组件需要 macOS 14+。
 
-打开 DMG，将「日距.app」拖入 Applications；ZIP 则先解压再移动。升级前先在应用中导出事件，保存或取消当前编辑并退出旧版，保留一份应用。**预览包仍受上述签名 / 公证限制约束，DMG 包装不会消除系统拦截。**
+下载 ZIP，解压后将「日距.app」移到 Applications。升级前先在应用中导出事件，保存或取消当前编辑并退出旧版，保留一份应用。**预览包仍受上述签名 / 公证限制约束，DMG 包装不会消除系统拦截。**
 
 校验文件示例：
 
 ```bash
-# 在两个安装包和 SHA256SUMS.txt 所在的下载目录执行
+# 在 ZIP 和 SHA256SUMS.txt 所在的下载目录执行
 shasum -a 256 -c SHA256SUMS.txt
 ```
 
@@ -60,7 +63,9 @@ shasum -a 256 -c SHA256SUMS.txt
 1. **新建日子**：点击 `＋`，或按 `⌘N`。
 2. **设定日期**：填写名称和目标日期；需要具体时刻时关闭「全天」。
 3. **保存**：过去的日期显示正计时，未来的日期显示倒计时。
-4. **放到桌面**：桌面右键 →「编辑小组件」→ 找到日距 → 添加小号或中号。
+4. **放到桌面**：桌面右键 →「编辑小组件」→ 找到日距 → 添加小号、中号或大号。
+
+标签在编辑表单中用逗号分隔，搜索同时匹配名称和标签。“显示 → 图标与颜色 → 自定颜色…”打开 macOS 原生色轮，也可用五种带实际色标的预设；自选颜色保存在本地，应用和组件一致显示。
 
 双击事件可修改。选中事件后按 `⌘D`，可以复制为一个新的编辑草稿；副本默认关闭提醒，取消不会创建事件。
 
@@ -68,8 +73,16 @@ shasum -a 256 -c SHA256SUMS.txt
 <summary><strong>看看编辑界面</strong></summary>
 <br />
 <img src="docs/images/editor.png" width="440" alt="简洁的原生编辑表单：名称、日期、全天、提醒和起始日计数" />
-<p>常用项保持直接可见，重复提醒与更多选项按需展开。</p>
+<p>事件编辑分为基本信息、提醒、显示，切换时保留同一草稿。</p>
 </details>
+
+## 智能列表（1.11 源码）
+
+在侧栏“智能列表”旁点击 ＋，按“字段 → 比较方式 → 值”添加规则，选择满足全部或任一条件。名称、标签、日期状态、相距天数、日期范围、置顶和每年重复都可组合；实时显示匹配数。“排序与跳过”默认收起，适合创建“工作标签、未来30天、跳过最近一项”等列表。
+
+在小组件中选择“内容来源 → 智能列表”，再选列表即可复用规则。外观选标准、简洁或自定；自定展开图标、日期和精确计时。原有组件选择、手动槽位和已生效的旧筛选保留。规则丢失或不可读时显示提示，不自动替换为全部事件。
+
+智能列表独立保存，有20份本地快照及恢复确认；损坏原文会先隔离保留，较新格式拒绝覆盖。**事件导出只包含事件，不包含智能列表。1.13.0 预览已包含当前功能。
 
 ## 桌面小组件
 
@@ -77,11 +90,15 @@ shasum -a 256 -c SHA256SUMS.txt
 
 <sub>以上为生产 SwiftUI 小组件内容在原生演示窗口中的截图，使用虚构事件；用于展示布局，不是系统桌面摆放截图。事件列表与编辑截图同样只含示例数据。</sub>
 
+**本次预览包含大号组件、筛选、标签和自选颜色。**
+
 添加后，在小组件上右键 →「编辑小组件」：
 
 - **小号**：选择一个具体事件；不指定时由应用规则自动选择。
 - **中号**：默认显示概览。打开「中号手动选择事件」，依次填写第一、第二、第三槽位，可留空；按槽位顺序展示。
-- **显示设置**：分别控制事件图标、目标日期、当天精确计时；每个组件可保持自己的设置。
+- **大号**：自动概览每页可设五至十条；事件较多时用页码两侧按钮翻页。WidgetKit 组件不支持普通列表滚动或左右滑动。相同筛选、排序与每页条数的组件同步页码；不同条件各自保存页码。
+- **自动筛选**：全部／未来与今天／已过、包含全部或任一标签、排除标签、排序、优先置顶、跳过前 N 条。每个组件独立保存；先筛选 → 排序 → 跳过 → 分页。比如选择“距离最近”、关闭“优先置顶”、跳过 1 条，即从次近事件开始。中号手动槽位不受自动筛选影响。
+- **外观**：标准、简洁、自定；自定展开事件图标、目标日期、当天精确计时开关。每个组件保留自己的外观。
 
 归档或回收站中的事件不会出现在自动概览里。明确选择的事件不可用时，会显示提示，不会悄悄替换成另一个事件；恢复原事件后可继续使用。
 
@@ -89,7 +106,7 @@ shasum -a 256 -c SHA256SUMS.txt
 
 ## 提醒：每天看见进度，也不错过纪念日
 
-编辑事件，展开「重复提醒」：
+编辑事件，切换到「提醒」页：
 
 | 提醒方式 | 行为 |
 | :--- | :--- |
@@ -135,7 +152,7 @@ Vim 键位默认开启，可在设置关闭。仅在事件列表中生效，文�
 - 当前开发预览使用 `~/Library/Application Support/DayDistanceLocal/events.json`，主应用与小组件共享本机数据。通知内容交给本机 macOS 通知系统处理。
 - 「文件 → 导出事件…」保存完整 JSON；「导入事件…」加入尚不存在的事件，同一标识内容冲突时拒绝整次合并，保留当前数据。
 - 成功修改后自动保留最多 20 份可读本地快照；「文件 → 备份与恢复…」先预览变化，再确认恢复。
-- 当前写入 **schema 6**、读取 schema 1–6。保存新格式后不要用旧版本编辑。
+- 1.9 写入 **schema 7**、读取 schema 1–7。打开旧文件不会自动改写；第一次保存后，1.8 及更早版本无法读取新格式。保存新格式后不要用旧版本编辑。
 - 正式签名版将使用 App Group 容器，通过导出 / 导入迁移，不能假定不同存储模式自动共享。
 
 详见 [使用帮助](HELP.md) · [隐私说明](PRIVACY.md)。公开截图、Issue 或诊断报告前，请检查其中是否含有个人事件。
@@ -160,7 +177,7 @@ bash script/build_and_run.sh --build-only
 
 产物：`build.noindex/Build/Products/DebugLocal/DayDistance.app`。也可以用 Xcode 打开 `DayDistance.xcodeproj`，选择 `DayDistance` scheme 与 `DebugLocal` 配置。该配置使用本地共享路径与开发沙盒目录例外，不等同于正式发行配置。
 
-预览包的可复现编译命令、Release 签名 / 公证门槛见 [构建与发行](docs/BUILDING.md)。已有 130 项核心测试覆盖日期、生命周期、备份、组件选择、提醒排期等，并另有原生服务与故障夹具。**测试通过不等于所有系统上的实际通知送达、小组件刷新或 VoiceOver 已完整验收。**
+预览包的可复现编译命令、Release 签名 / 公证门槛见 [构建与发行](docs/BUILDING.md)。已有 139 项核心测试覆盖日期、生命周期、备份、组件选择、提醒排期等，并另有原生服务与故障夹具。**测试通过不等于所有系统上的实际通知送达、小组件刷新或 VoiceOver 已完整验收。**
 
 ### 工程地图
 
@@ -185,3 +202,19 @@ script/              构建、安装、发行检查与独立 UI 验证
 [更新记录](CHANGELOG.md) · [构建与发行](docs/BUILDING.md) · [截图来源](docs/VISUALS.md)
 
 以 [MIT License](LICENSE) 开源。图标及源码随仓库提供，欢迎学习、修改与贡献。
+
+## 1.10 源码：重新组织设置
+
+应用设置采用一级侧栏：通用、通知与后台、数据与备份、小组件。导入、导出和恢复沿用文件菜单的同一流程，编辑期间会禁用；组件检查的详细内容按需展开。
+
+事件编辑分为“基本信息 / 提醒 / 显示”，切页不丢草稿，取消和保存固定在底部。日期每年重复与周年通知分别设置；计数规则提供第0天／第1天示例。
+
+基础页优先名称与日期；标签与年度规则在“更多选项”，已有规则会自动展开。颜色合并为一个带色标的入口，并保留系统色轮。帮助按五个主题折叠，小组件检查集中到设置。列表与侧栏按日期边界刷新，只有需要精确计时的行按秒更新；提醒预览不再生成完整通知队列。
+
+小组件配置按尺寸、自动／手动／单事件模式显示适用选项。自动概览的标签、排除与跳过规则归入“更多筛选条件”；已启用的条件始终可见。旧事件选择、显示偏好、筛选与分页规则保持。1.13.0 开发预览已包含这些功能。
+
+## 软件更新
+
+在“设置 → 软件更新”中启用或关闭自动检查；“日距 → 检查更新…”始终可以手动检查。启用时，应用打开期间默认每天检查 GitHub 更新源一次。发现新版后由用户决定是否下载，校验通过后在应用内安装并重新打开；编辑事件、智能列表或操作文件时会延后。更新源与 ZIP 均采用 EdDSA 签名。
+
+更新机制从 1.13.0 开始提供。已安装的更早版本需要先手动安装一次。GitHub Release 资产与签名 appcast 必须一起发布后，线上更新才可用；未公证预览仍不等于正式签名发行版。

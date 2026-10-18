@@ -19,7 +19,7 @@ enum SharedContainer {
         if let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
             urls.append(support.appendingPathComponent("DayDistance/events.json"))
         }
-        return urls
+        return urls + urls.map { $0.deletingLastPathComponent().appendingPathComponent("smart-lists.json") }
     }
     static func repository() throws -> EventRepository {
         if isLocalDevelopment {
@@ -34,6 +34,23 @@ enum SharedContainer {
             throw EventError.unavailableContainer
         }
         return EventRepository(fileURL: container.appendingPathComponent("events.json"))
+    }
+    static func smartListFileURL() throws -> URL {
+        try repository().fileURL.deletingLastPathComponent().appendingPathComponent("smart-lists.json")
+    }
+    static func languageFileURL() throws -> URL {
+        AppLanguage.appliedFile(beside: try repository().fileURL)
+    }
+    static func appliedLanguage() -> AppLanguage {
+        (try? languageFileURL()).flatMap { AppLanguage.applied(at: $0) } ?? AppLanguage.selection()
+    }
+    static func prepareWidgetLanguage() {
+        let language = appliedLanguage()
+        language.save() // Native AppIntent localizations in the extension process.
+        L10n.useLanguage(language)
+    }
+    static func widgetPageDirectory() throws -> URL {
+        try repository().fileURL.deletingLastPathComponent().appendingPathComponent("WidgetPages", isDirectory: true)
     }
     static func loadForApplication() throws -> (EventRepository, [CountdownEvent]) {
         let destination = try repository()

@@ -30,13 +30,13 @@ enum ReminderPolicy {
 
     /// Returns actual future notification times, without requesting permission or changing events.
     static func plan(events: [CountdownEvent], now: Date = Date(), timeZone: TimeZone = .autoupdatingCurrent,
-                     annualOccurrences: Int = annualOccurrences, maximumRequests: Int = maximumRequests) -> EventReminderPlan {
+                     annualOccurrences: Int = annualOccurrences, maximumRequests: Int = maximumRequests, recurringLimit: Int? = nil) -> EventReminderPlan {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         var candidates: [PlannedEventReminder] = []
         var pastEventCount = 0
         let enabled = events.filter { $0.isActive && $0.hasEnabledReminders }
-        for event in enabled { candidates += recurringRequests(event: event, now: now, calendar: calendar) }
+        for event in enabled { candidates += recurringRequests(event: event, now: now, calendar: calendar, limit: recurringLimit) }
         for event in enabled where event.reminder != .none {
             var cursor = now
             var futureCount = 0
@@ -99,7 +99,15 @@ enum ReminderPolicy {
         }
     }
 
-    private static func recurringRequests(event: CountdownEvent, now: Date, calendar: Calendar) -> [PlannedEventReminder] {
+    /// Uses the same calendar rules as scheduling, with only one future candidate per cadence.
+    static func nextDate(event: CountdownEvent, now: Date = Date(), timeZone: TimeZone = .autoupdatingCurrent) -> Date? {
+        plan(events: [event], now: now, timeZone: timeZone, maximumRequests: 1, recurringLimit: 1).requests.first?.fireDate
+    }
+
+    private static func recurringRequests(event: CountdownEvent, now: Date, calendar: Calendar, limit: Int? = nil) -> [PlannedEventReminder] {
+        let dailyCount = min(dailyOccurrences, limit ?? dailyOccurrences)
+        let monthlyCount = min(monthlyOccurrences, limit ?? monthlyOccurrences)
+        let yearlyCount = min(annualOccurrences, limit ?? annualOccurrences)
         var result: [PlannedEventReminder] = []
         func append(_ date: Date, cadence: ReminderCadence, body: String) {
             guard date > now else { return }
@@ -109,10 +117,10 @@ enum ReminderPolicy {
         }
         if let time = event.dailyReminderTime {
             let today = calendar.startOfDay(for: now)
-            for offset in 0...dailyOccurrences {
+            for offset in 0...dailyCount {
                 guard let day = calendar.date(byAdding: .day, value: offset, to: today),
                       let fire = calendar.date(bySettingHour: time.hour, minute: time.minute, second: 0, of: day) else { continue }
-                if result.count < dailyOccurrences {
+                if result.count < dailyCount {
                     append(fire, cadence: .daily, body: DayCounter.snapshot(event: event, now: fire, timeZone: calendar.timeZone).summary(for: event))
                 }
             }
@@ -123,8 +131,8 @@ enum ReminderPolicy {
             let elapsed = ((current.year ?? anchor.year) - anchor.year) * 12 + (current.month ?? anchor.month) - anchor.month
             let first = max(1, elapsed)
             let before = result.count
-            for number in first..<(first + monthlyOccurrences + 1) {
-                guard result.count - before < monthlyOccurrences else { break }
+            for number in first..<(first + monthlyCount + 1) {
+                guard result.count - before < monthlyCount else { break }
                 let absolute = (anchor.year - 1) * 12 + anchor.month - 1 + number
                 let year = absolute / 12 + 1, month = absolute % 12 + 1
                 if let fire = milestoneDate(year: year, month: month, day: anchor.day, time: time, calendar: calendar) {
@@ -135,8 +143,8 @@ enum ReminderPolicy {
         if let time = event.yearlyReminderTime {
             let first = max(1, (current.year ?? anchor.year) - anchor.year)
             let before = result.count
-            for number in first..<(first + annualOccurrences + 1) {
-                guard result.count - before < annualOccurrences else { break }
+            for number in first..<(first + yearlyCount + 1) {
+                guard result.count - before < yearlyCount else { break }
                 if let fire = milestoneDate(year: anchor.year + number, month: anchor.month, day: anchor.day, time: time, calendar: calendar) {
                     append(fire, cadence: .yearly, body: L10n.format("今天是第 %ld 周年纪念日。", number))
                 }

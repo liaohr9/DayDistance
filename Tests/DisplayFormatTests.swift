@@ -35,7 +35,7 @@ final class DisplayFormatTests: XCTestCase {
             XCTAssertEqual(try original.validated(now: original.updatedAt).displayFormat, format)
             let data = try EventRepository.encodeSnapshot([original])
             let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
-            XCTAssertEqual(json["schemaVersion"] as? Int, 6)
+            XCTAssertEqual(json["schemaVersion"] as? Int, 7)
             XCTAssertEqual(try EventRepository.decodeSnapshot(data), [original])
         }
     }
@@ -49,7 +49,7 @@ final class DisplayFormatTests: XCTestCase {
     }
 
     func testFutureSchemaIsRejectedBeforeUnknownFields() throws {
-        let data = Data(#"{"schemaVersion":7,"events":[{"displayFormat":"future"}]}"#.utf8)
+        let data = Data(#"{"schemaVersion":8,"events":[{"displayFormat":"future"}]}"#.utf8)
         XCTAssertThrowsError(try EventRepository.decodeSnapshot(data)) {
             guard case EventError.unsupportedVersion = $0 else { return XCTFail("Expected future-schema error, got \($0)") }
         }
@@ -68,7 +68,7 @@ final class DisplayFormatTests: XCTestCase {
         json["events"] = [fields]
         let invalid = try JSONSerialization.data(withJSONObject: json)
         XCTAssertThrowsError(try EventRepository.decodeSnapshot(invalid))
-        for incoming in [invalid, Data(#"{"schemaVersion":7,"events":[]}"#.utf8)] {
+        for incoming in [invalid, Data(#"{"schemaVersion":8,"events":[]}"#.utf8)] {
             XCTAssertThrowsError(try repo.importSnapshot(incoming, replacing: [original]))
             XCTAssertEqual(try Data(contentsOf: repo.fileURL), bytes)
         }

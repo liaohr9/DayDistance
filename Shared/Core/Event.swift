@@ -47,23 +47,24 @@ struct CountdownEvent: Codable, Identifiable, Equatable, Sendable {
     var displayFormat: EventDisplayFormat
     var symbol: String
     var colorKey: String
+    var tags: [String]
     var createdAt: Date
     var updatedAt: Date
 
-    init(id: UUID = UUID(), title: String, targetDate: Date, includesStartDay: Bool = false, displayFormat: EventDisplayFormat = .days, isAllDay: Bool = false, calendarDay: CalendarDay? = nil, annualTime: CalendarTime? = nil, repeatYearly: Bool = false, isPinned: Bool = false, reminder: EventReminder = .none, lifecycle: EventLifecycle = .active, trashedAt: Date? = nil, wasArchivedBeforeTrash: Bool = false, symbol: String = "calendar", colorKey: String = "sage", createdAt: Date = Date(), updatedAt: Date = Date()) {
+    init(id: UUID = UUID(), title: String, targetDate: Date, includesStartDay: Bool = false, displayFormat: EventDisplayFormat = .days, isAllDay: Bool = false, calendarDay: CalendarDay? = nil, annualTime: CalendarTime? = nil, repeatYearly: Bool = false, isPinned: Bool = false, reminder: EventReminder = .none, lifecycle: EventLifecycle = .active, trashedAt: Date? = nil, wasArchivedBeforeTrash: Bool = false, symbol: String = "calendar", colorKey: String = "sage", tags: [String] = [], createdAt: Date = Date(), updatedAt: Date = Date()) {
         self.id = id; self.title = title; self.targetDate = targetDate
         self.isAllDay = isAllDay; self.calendarDay = calendarDay; self.annualTime = annualTime
         self.repeatYearly = repeatYearly; self.isPinned = isPinned; self.reminder = reminder
         self.lifecycle = lifecycle; self.trashedAt = trashedAt; self.wasArchivedBeforeTrash = wasArchivedBeforeTrash
         self.includesStartDay = includesStartDay
         self.displayFormat = displayFormat
-        self.symbol = symbol; self.colorKey = colorKey
+        self.symbol = symbol; self.colorKey = colorKey; self.tags = tags
         self.createdAt = createdAt; self.updatedAt = updatedAt
     }
 
     private enum CodingKeys: String, CodingKey {
         case reminderDaysBefore, reminderTime, dailyReminderTime, monthlyReminderTime, yearlyReminderTime
-        case id, title, targetDate, includesStartDay, displayFormat, isAllDay, calendarDay, annualTime, repeatYearly, isPinned, reminder, lifecycle, trashedAt, wasArchivedBeforeTrash, symbol, colorKey, createdAt, updatedAt
+        case tags, id, title, targetDate, includesStartDay, displayFormat, isAllDay, calendarDay, annualTime, repeatYearly, isPinned, reminder, lifecycle, trashedAt, wasArchivedBeforeTrash, symbol, colorKey, createdAt, updatedAt
     }
 
     init(from decoder: Decoder) throws {
@@ -89,14 +90,29 @@ struct CountdownEvent: Codable, Identifiable, Equatable, Sendable {
         displayFormat = try values.decodeIfPresent(EventDisplayFormat.self, forKey: .displayFormat) ?? .days
         symbol = try values.decode(String.self, forKey: .symbol)
         colorKey = try values.decode(String.self, forKey: .colorKey)
+        tags = try values.decodeIfPresent([String].self, forKey: .tags) ?? []
         createdAt = try values.decode(Date.self, forKey: .createdAt)
         updatedAt = try values.decode(Date.self, forKey: .updatedAt)
+    }
+
+    static func tagIdentity(_ tag: String) -> String {
+        tag.trimmingCharacters(in: .whitespacesAndNewlines).folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+    }
+    static func normalizedTags(_ tags: [String]) -> [String] {
+        var seen = Set<String>()
+        return tags.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && seen.insert(tagIdentity($0)).inserted }
+    }
+    static func parseTags(_ text: String) -> [String] {
+        normalizedTags(text.components(separatedBy: CharacterSet(charactersIn: ",，;；\n")))
     }
 
     func validated(now: Date) throws -> Self {
         var result = self
         // Keep a typed display choice while editing; the formatter handles anniversary on nonannual events.
         result.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        result.tags = Self.normalizedTags(tags)
+        guard result.tags.count <= 30, result.tags.allSatisfy({ $0.count <= 40 }) else { throw EventError.invalidTags }
         guard !result.title.isEmpty else { throw EventError.blankTitle }
         guard targetDate.timeIntervalSince1970.isFinite else { throw EventError.invalidDate }
         result.targetDate = Date(timeIntervalSince1970: floor(targetDate.timeIntervalSince1970 / 60) * 60)
@@ -132,9 +148,10 @@ struct EventEditSession: Identifiable, Sendable {
 }
 
 enum EventError: LocalizedError {
-    case blankTitle, invalidDate, unsupportedVersion, duplicateID, unavailableContainer, changedData, busyData, importConflict, protectedExportDestination
+    case invalidTags, blankTitle, invalidDate, unsupportedVersion, duplicateID, unavailableContainer, changedData, busyData, importConflict, protectedExportDestination
     var errorDescription: String? {
         switch self {
+        case .invalidTags: return L10n.text("最多添加 30 个标签，每个标签不超过 40 个字。")
         case .blankTitle: return L10n.text("请填写事件名称。")
         case .invalidDate: return L10n.text("日期无法识别，请重新选择。")
         case .unsupportedVersion: return L10n.text("数据来自较新版本，请升级应用后再打开。原文件已保留。")

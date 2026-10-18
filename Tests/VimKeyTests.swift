@@ -36,4 +36,19 @@ final class VimKeyTests: XCTestCase {
         nav.move(1, ids: [], selected: &selected)
         XCTAssertTrue(selected.isEmpty)
     }
+    func testRemovedVisibleEventsClearSelectionCursorAndAnchor() {
+        let hidden = UUID(), visible = UUID()
+        var nav = VimListNavigation(cursor: hidden, anchor: hidden)
+        var selected: Set<UUID> = [hidden, visible]
+        nav.reconcile(ids: [visible], selected: &selected)
+        XCTAssertEqual(selected, [visible])
+        XCTAssertNil(nav.cursor)
+        XCTAssertNil(nav.anchor)
+        nav.cursor = visible
+        nav.reconcile(ids: [visible], selected: &selected)
+        XCTAssertEqual(nav.cursor, visible)
+        nav.reconcile(ids: [], selected: &selected)
+        XCTAssertTrue(selected.isEmpty)
+        XCTAssertNil(nav.cursor)
+    }
 }

@@ -6,7 +6,7 @@ import WidgetKit
 struct WidgetDisplayUIProbe: App {
     var body: some Scene {
         WindowGroup("日距 · 小组件显示验证") { WidgetDisplayProbeView() }
-        .defaultSize(width: 960, height: 480)
+        .defaultSize(width: 1080, height: 640)
     }
 }
 
@@ -15,6 +15,9 @@ struct WidgetDisplayProbeView: View {
     @State private var inactive = false
     @State private var manual = false
     @State private var missing = false
+    @State private var largeRows = 6
+    @State private var pageIndex = 0
+    @State private var filtered = false
     @State private var format = EventDisplayFormat.days
     private let now: Date
     private let events: [CountdownEvent]
@@ -23,7 +26,9 @@ struct WidgetDisplayProbeView: View {
         now = date
         events = [CountdownEvent(title: "七天后出发", targetDate: date.addingTimeInterval(7 * 86400), symbol: "airplane"),
          CountdownEvent(title: "今天的纪念", targetDate: date.addingTimeInterval(-300), isAllDay: true, calendarDay: CalendarDay(date: date), repeatYearly: true, symbol: "heart"),
-         CountdownEvent(title: "已经过了十天", targetDate: date.addingTimeInterval(-10 * 86400), symbol: "flag")]
+         CountdownEvent(title: "已经过了十天", targetDate: date.addingTimeInterval(-10 * 86400), symbol: "flag")] + (4...15).map { index in
+            CountdownEvent(title: "期待 \(index)", targetDate: date.addingTimeInterval(Double(index) * 86400), symbol: "flag", colorKey: index.isMultiple(of: 2) ? "blue" : "rose", tags: index.isMultiple(of: 2) ? ["工作"] : ["生活"])
+        }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -48,10 +53,18 @@ struct WidgetDisplayProbeView: View {
                     ForEach(EventDisplayFormat.allCases, id: \.self) { Text($0.label).tag($0) }
                 }.frame(width: 250)
             }.toggleStyle(.checkbox)
-            HStack(spacing: 16) {
+            HStack {
+                Picker("大号每页条数", selection: $largeRows) { ForEach(5...10, id: \.self) { Text("\($0)").tag($0) } }.frame(width: 190)
+                Picker("预览页面", selection: $pageIndex) { ForEach(0..<3, id: \.self) { Text("\($0 + 1)").tag($0) } }.frame(width: 170)
+                Toggle("工作标签、按距离、跳过第一条", isOn: $filtered)
+            }
+            HStack(alignment: .top, spacing: 16) {
+                sample(family: .systemLarge, single: false, title: "大号 · 自动筛选与分页")
+                VStack(spacing: 16) {
+                    sample(family: .systemMedium, single: false, title: "中号 · 同一筛选")
+                    sample(family: .systemMedium, single: true, title: "中号 · 指定事件不受自动筛选影响")
+                }
                 sample(family: .systemSmall, single: true, title: "小号 · 单事件")
-                sample(family: .systemMedium, single: false, title: "中号 · 概览")
-                sample(family: .systemMedium, single: true, title: "中号 · 单事件")
             }
         }.padding(20)
     }
@@ -63,9 +76,9 @@ struct WidgetDisplayProbeView: View {
         let selection = WidgetManualSelection(enabled: manual, slotIDs: [missing ? UUID().uuidString : data[2].id.uuidString, data[0].id.uuidString, data[1].id.uuidString])
         return VStack(alignment: .leading) {
             Text(title).font(.caption).foregroundStyle(.secondary)
-            DayWidgetContent(entry: DayEntry(date: now, events: data, explicitID: single ? data[1].id.uuidString : nil, error: nil, displayOptions: options, manualSelection: selection), family: family)
+            DayWidgetContent(entry: DayEntry(date: now, events: data, explicitID: single ? data[1].id.uuidString : nil, error: nil, displayOptions: options, manualSelection: selection, filter: filtered ? WidgetFilter(scope: .upcoming, includedTags: ["工作"], sort: .nearest, prioritizePinned: false, skip: 1) : WidgetFilter(), pageSize: largeRows, pagingID: "11111111-1111-1111-1111-111111111111", pageIndex: pageIndex), family: family)
                 .padding(16)
-                .frame(width: family == .systemSmall ? 164 : 344, height: 164)
+                .frame(width: family == .systemSmall ? 164 : 344, height: family == .systemLarge ? 360 : 164)
                 .background(.background, in: RoundedRectangle(cornerRadius: 24))
         }
     }

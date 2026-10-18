@@ -51,3 +51,22 @@ final class ExportDestinationTests: XCTestCase {
         XCTAssertNoThrow(try ExportDestinationPolicy.validate(root.appendingPathComponent("backups-user.png"), protectedFiles: [], protectedDirectories: [backup]))
     }
 }
+
+extension ExportDestinationTests {
+    func testEventExportProtectsSmartListsAndRecoverySnapshots() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let events = EventRepository(fileURL: root.appendingPathComponent("events.json"))
+        try events.save([], replacing: [])
+        let rules = root.appendingPathComponent("smart-lists.json")
+        let snapshots = root.appendingPathComponent("smart-list-backups")
+        try FileManager.default.createDirectory(at: snapshots, withIntermediateDirectories: true)
+        let snapshot = snapshots.appendingPathComponent("existing.json")
+        for f in [rules, rules.appendingPathExtension("lock"), snapshot] { try Data("preserve".utf8).write(to: f) }
+        for f in [rules, rules.appendingPathExtension("lock"), snapshot, snapshots.appendingPathComponent("new.json")] {
+            XCTAssertThrowsError(try events.exportSnapshot(to: f), f.path)
+        }
+        for f in [rules, rules.appendingPathExtension("lock"), snapshot] { XCTAssertEqual(try Data(contentsOf: f), Data("preserve".utf8)) }
+    }
+}

@@ -24,9 +24,9 @@ class FaultControlTests(unittest.TestCase):
         cls.writer = str(Path(cls.build.name) / "writer")
         project = Path(__file__).resolve().parent.parent
         env = os.environ.copy()
-        env.setdefault("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Developer")
+        env.setdefault("DEVELOPER_DIR", "/Volumes/haoran 1/Applications/Xcode.app/Contents/Developer")
         subprocess.run(["/usr/bin/xcrun", "swiftc", "-parse-as-library", str(project / "Shared/Core/L10n.swift"), str(project / "Shared/Core/Event.swift"), str(project / "Shared/Core/EventDates.swift"),
-                        str(project / "Shared/Core/EventRepository.swift"), str(project / "Tests/Fixtures/UIWriterProbe.swift"),
+                        str(project / "Shared/Core/EventRepository.swift"), str(project / "Shared/Core/ExportDestinationPolicy.swift"), str(project / "Tests/Fixtures/UIWriterProbe.swift"),
                         "-o", cls.writer], env=env, check=True, timeout=90)
 
     def setUp(self):
@@ -82,7 +82,7 @@ class FaultControlTests(unittest.TestCase):
 
     def test_recover_refuses_invalid_baseline(self):
         original = self.source.read_bytes()
-        for raw in (b"broken", b'{"schemaVersion":7,"events":[]}', b'{"schemaVersion":1}'):
+        for raw in (b"broken", b'{"schemaVersion":8,"events":[]}', b'{"schemaVersion":1}'):
             with self.subTest(raw=raw):
                 (self.root / "baseline.json").write_bytes(raw)
                 with self.assertRaises(ValueError):
@@ -110,7 +110,7 @@ class FaultControlTests(unittest.TestCase):
                 if operation == "corrupt":
                     self.assertFalse(result["valid_json"])
                 else:
-                    self.assertEqual(result["schema_version"], 7)
+                    self.assertEqual(result["schema_version"], 8)
                 self.assertEqual(baseline.read_bytes(), original)
                 self.assertEqual((self.data / "events.json.lock").stat().st_ino, inode)
                 self.control("recover")

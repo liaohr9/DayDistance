@@ -19,10 +19,11 @@ import SwiftUI
         return data
     }
     static func save(event: CountdownEvent, now: Date, showDate: Bool, to destination: URL, protecting files: [URL]) throws {
-        let directories = files.map { LocalBackupRepository(eventFileURL: $0).folderURL }
-        try ExportDestinationPolicy.validate(destination, protectedFiles: files, protectedDirectories: directories)
+        let directories = files.map { LocalBackupRepository(eventFileURL: $0).folderURL } + ExportDestinationPolicy.smartListBackupDirectories(beside: files)
+        let protected = files + ExportDestinationPolicy.smartListFiles(beside: files)
+        try ExportDestinationPolicy.validate(destination, protectedFiles: protected, protectedDirectories: directories)
         let data = try png(event: event, now: now, showDate: showDate)
-        try ExportDestinationPolicy.validate(destination, protectedFiles: files, protectedDirectories: directories)
+        try ExportDestinationPolicy.validate(destination, protectedFiles: protected, protectedDirectories: directories)
         try data.write(to: destination, options: .atomic)
     }
 }

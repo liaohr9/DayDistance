@@ -5,28 +5,36 @@ from pathlib import Path
 p = Path(__file__).resolve().parent.parent
 args = argparse.ArgumentParser()
 args.add_argument('--language', choices=['zh-Hans','en'], default='zh-Hans')
-args.add_argument('--capture-ready', action='store_true', help='Compact light showcase, fictional events only')
-args.add_argument('--showcase', action='store_true', help='Public screenshots with fictional events only')
+args.add_argument('--language-restarts', type=int, default=0, help='Keep disposable app/preferences for this many normal relaunches')
 args.add_argument('--empty', action='store_true')
+args.add_argument('--smart-lists', action='store_true', help='Seed a disposable reusable list and recovery snapshots')
 args.add_argument('--custom-reminder', action='store_true', help='Disposable event with a custom reminder, no notifications sent')
 args.add_argument('--permission-refresh', action='store_true', help='Disposable permission state file, no real permission or notifications')
 args.add_argument('--high-contrast', action='store_true', help='Render production UI with increased contrast')
 args.add_argument('--trace-keys', action='store_true', help='Diagnostic: log list key routing')
+args.add_argument('--trace-colors', action='store_true', help='Diagnostic: log native color panel visibility on disposable data')
 args.add_argument('--trace-sort', action='store_true', help='Diagnostic: log native menu lifecycle and focus')
 args.add_argument('--freeze-timeline', action='store_true', help='Diagnostic: pause production TimelineView updates on disposable data')
 args = args.parse_args()
-env = dict(os.environ)
-env.setdefault('DEVELOPER_DIR', '/Applications/Xcode.app/Contents/Developer')
+env = dict(os.environ, DEVELOPER_DIR='/Volumes/haoran 1/Applications/Xcode.app/Contents/Developer')
 with tempfile.TemporaryDirectory(prefix='daydistance-public-', suffix='.noindex') as folder:
     root = Path(folder)
     app = root/'日距公开版验证.app'; contents = app/'Contents'; (contents/'MacOS').mkdir(parents=True)
     source = (p/'App/DayDistanceApp.swift').read_text().replace('struct DayDistanceApp:', 'struct PublicFeatureQAApp:').replace('DayDistanceApp.main()', 'PublicFeatureQAApp.main()').replace('let initialStore = EventStore(automaticallyLoad: false)', 'let initialStore = EventStore(repository: PublicFeatureQA.repository, automaticallyLoad: false)').replace('repositoryProvider: { try SharedContainer.repository() }', 'repositoryProvider: { PublicFeatureQA.repository }')
     source = source.replace('CommandGroup(replacing: .help) {', 'CommandGroup(replacing: .help) { Button("Menu Bar Preview") { openWindow(id: "qaMenu") }')
-    source = source.replace('Settings { PreferencesView(dockIcons: applicationDelegate.dockIcons, reminders: reminders, background: backgroundReminders) }', 'Window("Menu Bar Preview", id: "qaMenu") { MenuBarView(store: store, openMain: activateMain, create: { activateMain(); store.newEvent() }) }\n        Settings { PreferencesView(dockIcons: applicationDelegate.dockIcons, reminders: reminders, background: backgroundReminders) }')
+    source = source.replace('Settings { PreferencesView(dockIcons: applicationDelegate.dockIcons, reminders: reminders, background: backgroundReminders, store: store, updates: updates) }', 'Window("Menu Bar Preview", id: "qaMenu") { MenuBarView(store: store, openMain: activateMain, create: { activateMain(); store.newEvent() }) }\n        Settings { PreferencesView(dockIcons: applicationDelegate.dockIcons, reminders: reminders, background: backgroundReminders, store: store, updates: updates) }')
     source = source.replace('EventReminderService(repositoryProvider: { PublicFeatureQA.repository })', 'EventReminderService(client: PublicFeatureQA.notificationClient, repositoryProvider: { PublicFeatureQA.repository })')
     source = source.replace('BackgroundReminderController()', 'BackgroundReminderController(client: PublicFeatureQA.backgroundClient)')
+    source = source.replace('SharedContainer.languageFileURL()', 'AppLanguage.appliedFile(beside: PublicFeatureQA.repository.fileURL)')
+    source = source.replace('SharedContainer.appliedLanguage()', '(AppLanguage.applied(at: AppLanguage.appliedFile(beside: PublicFeatureQA.repository.fileURL)) ?? AppLanguage.selection())')
+    source = source.replace('case .normal:\n', 'case .normal:\n            if CommandLine.arguments.contains("--qa-initial-language") { AppLanguage(rawValue: "' + args.language + '")!.save() }\n')
+    # A disposable host has no widget extension. Do not refresh real widgets.
+    source = source.replace('WidgetCenter.shared.reloadAllTimelines()', 'print("QA_LANGUAGE_PUBLISHED"); fflush(stdout)')
+    source = source.replace('PreferencesView(dockIcons: applicationDelegate.dockIcons, reminders: reminders, background: backgroundReminders, store: store, updates: updates)', 'PreferencesView(dockIcons: applicationDelegate.dockIcons, reminders: reminders, background: backgroundReminders, store: store, applyLanguage: { try $0.apply(file: AppLanguage.appliedFile(beside: PublicFeatureQA.repository.fileURL)) })')
     source = source.replace('await reminders.authorizeIfNeeded()', 'nil')
     source = source.replace('await reminders.sync(events: store.events.filter(\\.isActive))', 'await reminders.sync(events: [])')
+    if args.trace_colors:
+        source = source.replace('ContentView(store: store)', 'ContentView(store: store).onReceive(Timer.publish(every: 2, on: .main, in: .common).autoconnect()) { _ in print("COLOR_PANEL", NSColorPanel.shared.isVisible, NSColorPanel.shared.isKeyWindow, NSColorPanel.shared.color); fflush(stdout) }')
     if args.empty:
         source = source.replace('hasShownWidgetHint', 'hasShownWidgetHintEmptyQA')
     source += '''\nimport UserNotifications
@@ -41,6 +49,7 @@ with tempfile.TemporaryDirectory(prefix='daydistance-public-', suffix='.noindex'
     var status = BackgroundReminderStatus.off
     func register() async throws { status = .requiresApproval }
     func unregister() async throws { status = .off }
+    func confirmExecution(since: Date) async throws -> Bool { true }
     func openSettings() { }
 }
 @MainActor enum PublicFeatureQA {
@@ -58,23 +67,6 @@ with tempfile.TemporaryDirectory(prefix='daydistance-public-', suffix='.noindex'
         return repository
     }
 }\n'''
-    if args.showcase or args.capture_ready:
-        source = source.replace('let events = [CountdownEvent', 'let originalEvents = [CountdownEvent')
-        source = source.replace('try! repository.save(events, replacing: [])', 'let date = { (y: Int, m: Int, d: Int) in Calendar.current.date(from: DateComponents(year: y, month: m, day: d, hour: 9))! }\n            let events = [\n                CountdownEvent(title:"京都之旅", targetDate:date(2026,11,8), isAllDay:true, calendarDay:CalendarDay(date:date(2026,11,8)), isPinned:true, symbol:"airplane", colorKey:"amber"),\n                CountdownEvent(title:"第一场马拉松", targetDate:date(2026,11,15), isAllDay:true, calendarDay:CalendarDay(date:date(2026,11,15)), symbol:"flag", colorKey:"sage"),\n                CountdownEvent(title:"我的生日", targetDate:date(2026,12,24), isAllDay:true, calendarDay:CalendarDay(date:date(2026,12,24)), repeatYearly:true, symbol:"gift", colorKey:"violet"),\n                CountdownEvent(title:"开始学习钢琴", targetDate:date(2024,5,20), includesStartDay:true, isAllDay:true, calendarDay:CalendarDay(date:date(2024,5,20)), symbol:"sun.max", colorKey:"blue")\n            ]\n            try! repository.save(events, replacing: [])')
-    if args.capture_ready:
-        source = source.replace('let initialStore = EventStore(repository: PublicFeatureQA.repository, automaticallyLoad: false)', 'NSApplication.shared.appearance = NSAppearance(named: .aqua)\n        let initialStore = EventStore(repository: PublicFeatureQA.repository, automaticallyLoad: false)')
-        source = source.replace('.defaultSize(width: 800, height: 520)', '.defaultSize(width: 840, height: 410)')
-        source = source.replace('CountdownEvent(title:"开始学习钢琴"', 'CountdownEvent(title:"第一次上班", targetDate:date(2025,3,17), isAllDay:true, calendarDay:CalendarDay(date:date(2025,3,17)), symbol:"briefcase", colorKey:"rose"),\n                CountdownEvent(title:"资格考试", targetDate:date(2026,10,26), isAllDay:true, calendarDay:CalendarDay(date:date(2026,10,26)), symbol:"graduationcap", colorKey:"blue"),\n                CountdownEvent(title:"开始学习钢琴"')
-    if args.language == 'en' and (args.showcase or args.capture_ready):
-        for chinese, english in {
-            '京都之旅': 'Kyoto Trip',
-            '第一场马拉松': 'My First Marathon',
-            '我的生日': 'My Birthday',
-            '第一次上班': 'First Day at Work',
-            '资格考试': 'Certification Exam',
-            '开始学习钢琴': 'Learning Piano',
-        }.items():
-            source = source.replace(f'title:"{chinese}"', f'title:"{english}"')
     if args.permission_refresh:
         (root/'permission-state.txt').write_text('denied')
         source = source.replace('func authorizationStatus() async -> UNAuthorizationStatus { .notDetermined }', '\n    var pending: [String: UNNotificationRequest] = [:]\n    func authorizationStatus() async -> UNAuthorizationStatus {\n        let file = URL(fileURLWithPath: CommandLine.arguments[1]).appendingPathComponent("permission-state.txt")\n        let value = try? String(contentsOf: file, encoding: .utf8)\n        return value?.trimmingCharacters(in: .whitespacesAndNewlines) == "authorized" ? .authorized : .denied\n    }')
@@ -84,8 +76,10 @@ with tempfile.TemporaryDirectory(prefix='daydistance-public-', suffix='.noindex'
         source = source.replace('let events = [CountdownEvent', 'var events = [CountdownEvent').replace('try! repository.save(events, replacing: [])', 'events[0].reminder = .custom; events[0].reminderTime = CalendarTime(hour: 9, minute: 30); events[0].reminderDaysBefore = 0; try! repository.save(events, replacing: [])')
     if args.empty:
         source = source.replace('try! repository.save(events, replacing: [])' , 'try! repository.save([], replacing: [])')
+    if args.smart_lists:
+        source = source.replace('try! repository.save(events, replacing: [])', 'try! repository.save(events, replacing: []); try! SmartListRepository(fileURL: root.appendingPathComponent("data/smart-lists.json")).save([SmartList(name: "Smart QA", rules: [SmartRule(field: .dateState, comparison: .equals, dateState: .future)])], replacing: [])')
     host = root/'PublicApp.swift'; host.write_text(source)
-    sources = sorted((p/'Shared/Core').glob('*.swift')) + sorted((p/'Shared/Presentation').glob('*.swift')) + [p/'Shared/Platform/SharedContainer.swift', p/'App/Stores/EventStore.swift'] + sorted((p/'App/Views').glob('*.swift')) + sorted((p/'App/Services').glob('*.swift')) + sorted((p/'App/Intents').glob('*.swift')) + [host]
+    sources = sorted((p/'Shared/Core').glob('*.swift')) + sorted((p/'Shared/Presentation').glob('*.swift')) + [p/'Shared/Platform/SharedContainer.swift'] + sorted((p/'App/Stores').glob('*.swift')) + sorted((p/'App/Views').glob('*.swift')) + sorted((p/'App/Services').glob('*.swift')) + sorted((p/'App/Intents').glob('*.swift')) + [host]
     if args.freeze_timeline or args.trace_sort or args.trace_keys:
         original = p/'App/Views/ContentView.swift'
         frozen = root/'ContentView.swift'
@@ -117,11 +111,17 @@ with tempfile.TemporaryDirectory(prefix='daydistance-public-', suffix='.noindex'
     subprocess.run(['codesign','--force','--sign','-',str(app)],check=True)
     print('PUBLIC_QA: '+str(app),flush=True)
     print('DATA: '+str(root/'data/events.json'),flush=True)
-    process = subprocess.Popen([str(binary),str(root),'-AppleLanguages',f'({args.language})','-AppleLocale','en_US' if args.language=='en' else 'zh_CN'])
+    process = None
     try:
-        code=process.wait()
-        if code: raise subprocess.CalledProcessError(code,str(binary))
+        for launch in range(args.language_restarts + 1):
+            print('QA_LAUNCH: '+str(launch + 1), flush=True)
+            command = [str(binary),str(root),'-AppleLocale','en_US' if args.language=='en' else 'zh_CN']
+            if launch == 0: command.append('--qa-initial-language')
+            process = subprocess.Popen(command)
+            code=process.wait()
+            if code: raise subprocess.CalledProcessError(code,str(binary))
     finally:
-        if process.poll() is None:
+        if process and process.poll() is None:
             process.terminate();process.wait(timeout=5)
         subprocess.run(['/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister','-u',str(app)],check=False)
+        subprocess.run(['defaults','delete',bundle_id],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=False)

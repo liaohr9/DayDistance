@@ -8,5 +8,7 @@
 	<array>
 		<string>/Library/Application Support/DayDistanceLocal/</string>
 	</array>
+    <key>com.apple.security.temporary-exception.files.home-relative-path.read-write</key>
+    <array><string>/Library/Application Support/DayDistanceLocal/WidgetPages/</string></array>
 </dict>
 </plist>

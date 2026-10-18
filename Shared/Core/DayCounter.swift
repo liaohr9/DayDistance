@@ -38,3 +38,27 @@ enum DayCounter {
         return CounterSnapshot(days: days, isFuture: isFuture, seconds: seconds, isSameDay: difference == 0)
     }
 }
+
+
+/// Calendar summaries change at midnight or a target boundary; only visible clocks need seconds.
+enum EventRefreshPolicy {
+    static func nextUpdate(events: [CountdownEvent], after now: Date, includeClock: Bool,
+                           timeZone: TimeZone = .autoupdatingCurrent) -> Date {
+        let calendar = CalendarDay.calendar(timeZone)
+        var next = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now.addingTimeInterval(3600)
+        for event in events {
+            let target = event.countdownDate(now: now, timeZone: timeZone)
+            if !event.isAllDay && target > now { next = min(next, target) }
+            guard includeClock && !event.isAllDay else { continue }
+            let snapshot = DayCounter.snapshot(event: event, now: now, timeZone: timeZone)
+            if snapshot.showsClock {
+                next = min(next, Date(timeIntervalSinceReferenceDate: floor(now.timeIntervalSinceReferenceDate) + 1))
+            } else if target > now {
+                // The counter starts its clock when floor(seconds) drops below 86400.
+                let clockStart = target.addingTimeInterval(-86399)
+                if clockStart > now { next = min(next, clockStart) }
+            }
+        }
+        return next
+    }
+}

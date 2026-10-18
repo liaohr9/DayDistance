@@ -3,7 +3,7 @@ set -euo pipefail
 MODE="${1:-run}"
 case "$MODE" in run|--verify|--debug|--logs|--telemetry|--build-only|--install-only) ;; *) echo 'usage: build_and_run.sh [--build-only|--install-only|--verify|--debug|--logs|--telemetry]' >&2; exit 2;; esac
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
+export DEVELOPER_DIR="${DEVELOPER_DIR:-/Volumes/haoran 1/Applications/Xcode.app/Contents/Developer}"
 if [[ ! -d "$DEVELOPER_DIR" ]]; then echo "Xcode not found: $DEVELOPER_DIR" >&2; exit 1; fi
 CONFIGURATION="${CONFIGURATION:-DebugLocal}"
 BUILD_DIR="$ROOT_DIR/build.noindex"
@@ -28,8 +28,12 @@ if [[ "$MODE" != --install-only ]]; then
  python3 "$ROOT_DIR/script/test_release.py" > "$BUILD_DIR/release-tests.log" 2>&1 || { cat "$BUILD_DIR/release-tests.log"; exit 1; }
  python3 "$ROOT_DIR/script/test_storage.py" > "$BUILD_DIR/storage-tests.log" 2>&1 || { cat "$BUILD_DIR/storage-tests.log"; exit 1; }
  python3 "$ROOT_DIR/script/test_widget_intent.py" > "$BUILD_DIR/widget-intent-tests.log" 2>&1 || { cat "$BUILD_DIR/widget-intent-tests.log"; exit 1; }
+ python3 "$ROOT_DIR/script/test_widget_smart_lists.py" > "$BUILD_DIR/widget-smart-tests.log" 2>&1 || { cat "$BUILD_DIR/widget-smart-tests.log"; exit 1; }
+ python3 "$ROOT_DIR/script/test_smart_list_store.py" > "$BUILD_DIR/smart-store-tests.log" 2>&1 || { cat "$BUILD_DIR/smart-store-tests.log"; exit 1; }
  python3 "$ROOT_DIR/script/test_undo.py" > "$BUILD_DIR/undo-tests.log" 2>&1 || { cat "$BUILD_DIR/undo-tests.log"; exit 1; }
  zsh "$ROOT_DIR/script/test_background_reminders.sh" > "$BUILD_DIR/background-reminder-tests.log" 2>&1 || { cat "$BUILD_DIR/background-reminder-tests.log"; exit 1; }
+ python3 "$ROOT_DIR/script/test_updates.py" > "$BUILD_DIR/update-tests.log" 2>&1 || { cat "$BUILD_DIR/update-tests.log"; exit 1; }
+ python3 "$ROOT_DIR/script/test_settings.py" > "$BUILD_DIR/settings-tests.log" 2>&1 || { cat "$BUILD_DIR/settings-tests.log"; exit 1; }
  zsh "$ROOT_DIR/script/test_batch.sh" > "$BUILD_DIR/batch-tests.log" 2>&1 || { cat "$BUILD_DIR/batch-tests.log"; exit 1; }
  zsh "$ROOT_DIR/script/test_dock_icon.sh" > "$BUILD_DIR/dock-icon-tests.log" 2>&1 || { cat "$BUILD_DIR/dock-icon-tests.log"; exit 1; }
  zsh "$ROOT_DIR/script/test_diagnostics.sh" > "$BUILD_DIR/diagnostics-tests.log" 2>&1 || { cat "$BUILD_DIR/diagnostics-tests.log"; exit 1; }
@@ -37,6 +41,7 @@ if [[ "$MODE" != --install-only ]]; then
  zsh "$ROOT_DIR/Tests/Fixtures/Shortcuts/test.sh" > "$BUILD_DIR/shortcut-tests.log" 2>&1 || { tail -60 "$BUILD_DIR/shortcut-tests.log"; exit 1; }
  xcodebuild -project "$ROOT_DIR/DayDistance.xcodeproj" -scheme DayDistance -configuration "$CONFIGURATION" -destination 'platform=macOS' -derivedDataPath "$BUILD_DIR" build > "$BUILD_DIR/build.log" 2>&1 || { tail -80 "$BUILD_DIR/build.log"; exit 1; }
  cleanup_registration
+ python3 "$ROOT_DIR/script/test_widget_summary.py" "$CANDIDATE" > "$BUILD_DIR/widget-summary-tests.log" 2>&1 || { cat "$BUILD_DIR/widget-summary-tests.log"; exit 1; }
  (cd "$ROOT_DIR" && swift test --scratch-path "$BUILD_DIR/CoreTests") > "$BUILD_DIR/core-tests.log" 2>&1 || { tail -80 "$BUILD_DIR/core-tests.log"; exit 1; }
  /usr/bin/codesign --verify --deep --strict "$CANDIDATE"
  printf 'Build and core tests succeeded: %s\n' "$CANDIDATE"

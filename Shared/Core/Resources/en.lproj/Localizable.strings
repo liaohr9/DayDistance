@@ -400,3 +400,254 @@
 
 "后台任务未能启动，请重新打开应用重试。" = "The background task did not start. Reopen the app to retry.";
 "正在验证后台刷新…" = "Checking Background Refresh…";
+
+"标签" = "Tags";
+
+"事件标签" = "Event Tags";
+
+"用逗号分隔，如工作，旅行" = "Separate with commas, e.g. Work, Travel";
+
+"最多添加 30 个标签，每个标签不超过 40 个字。" = "Add up to 30 tags, each no longer than 40 characters.";
+
+"显示范围" = "Event Scope";
+
+"未来与今天" = "Upcoming and Today";
+
+"标签匹配" = "Tag Matching";
+
+"包含全部标签" = "Match All Tags";
+
+"包含任一标签" = "Match Any Tag";
+
+"包含标签" = "Include Tags";
+
+"排除标签" = "Exclude Tags";
+
+"组件排序" = "Widget Sort Order";
+
+"默认顺序" = "Default Order";
+
+"距离最近" = "Nearest First";
+
+"距离最远" = "Farthest First";
+
+"日期从早到晚" = "Date, Earliest First";
+
+"日期从晚到早" = "Date, Latest First";
+
+"最近创建" = "Newest Created";
+
+"按名称" = "By Name";
+
+"优先置顶" = "Pinned First";
+
+"跳过前几条" = "Skip First Events";
+
+"大号每页条数" = "Events per Large Page";
+
+"组件标识" = "Widget Identifier";
+
+"没有符合条件的事件" = "No Matching Events";
+
+"编辑小组件，调整筛选条件" = "Edit the widget to adjust its filters";
+
+"上一页" = "Previous Page";
+
+"下一页" = "Next Page";
+
+"第 %ld 页，共 %ld 页" = "Page %ld of %ld";
+
+"切换组件页面" = "Change Widget Page";
+
+"筛选条件" = "Filters";
+
+"目标页" = "Page";
+
+"预设" = "Presets";
+
+"事件颜色" = "Event Color";
+
+"打开系统颜色选择器" = "Open the system color picker";
+
+"自定颜色…" = "Custom Color…";
+
+"小号显示最近日子，中大号显示筛选概览" = "Small shows the nearest event; medium and large show filtered overviews";
+
+"小号默认显示最近日子；中大号可独立筛选概览。也可以指定一个事件。" = "Small defaults to the nearest event; medium and large can independently filter their overviews. You can also select a specific event.";
+
+"标签与颜色" = "Tags and Colors";
+
+"编辑事件时填写标签，使用逗号分隔；搜索可匹配名称或标签。在“更多选项 → 颜色”点击“自定颜色…”打开系统色轮，也可用预设。保存才生效，取消保留原数据。" = "Separate event tags with commas and search by name or tag. Under More Options → Color, choose Custom Color… to open the system color wheel or pick a preset. Changes apply only when saved; Cancel keeps the original data.";
+
+"自动筛选与大号组件" = "Filters and Large Widgets";
+
+"每个组件独立设置范围、包含全部或任一标签、排除标签、排序、优先置顶和跳过前几条。先筛选、排序、跳过，再展示。中号最多三条，大号每页五至十条；更多事件用页码旁的按钮翻页，不支持滚动或滑动。中号手动槽位不受自动筛选影响。" = "Each widget independently sets its scope, all/any included tags, excluded tags, sort, pinned priority, and skip count. Filtering, sorting, and skipping happen before display. Medium shows up to three events; large shows five to ten per page, with page buttons for additional events. Scrolling and swiping are not supported. Manual medium slots ignore automatic filters.";
+
+/* Settings redesign */
+"通用" = "General";
+"通知与后台" = "Notifications & Background";
+"数据与备份" = "Data & Backups";
+"小组件" = "Widgets";
+"设置分类" = "Settings Categories";
+"外观" = "Appearance";
+"键盘" = "Keyboard";
+"系统通知" = "System Notifications";
+"打开系统通知设置…" = "Open Notification Settings…";
+"退出后的提醒" = "Reminders After Quitting";
+"安排详情" = "Schedule Details";
+"事件文件" = "Event Files";
+"事件数量" = "Event Count";
+"自动本地备份" = "Automatic Local Backups";
+"成功修改后自动保留最多20份快照。" = "Keeps up to 20 snapshots after successful changes.";
+"可用备份" = "Available Backups";
+"%ld 份" = "%ld backups";
+"最近备份" = "Latest Backup";
+"请先完成当前编辑或文件操作。" = "Finish the current edit or file operation first.";
+"基本信息" = "Basics";
+"事件信息" = "Event Information";
+"日期每年重复" = "Repeat Date Yearly";
+"倒计至下一次纪念日；通知在“提醒”页单独设置。" = "Counts down to the next anniversary. Set notifications separately in Reminders.";
+"到期提醒" = "Due Reminder";
+"自定提醒时间" = "Custom Reminder Time";
+"每日进度" = "Daily Progress";
+"纪念提醒" = "Milestone Reminders";
+"通知与后台设置…" = "Notifications & Background Settings…";
+"计数方式" = "Counting";
+"事件开始后，当天计为第 1 天，次日计为第 2 天。" = "Once the event starts, its date counts as day 1 and the next date as day 2.";
+"事件开始后，当天计为第 0 天，次日计为第 1 天。" = "Once the event starts, its date counts as day 0 and the next date as day 1.";
+"图标与颜色" = "Icon & Color";
+"更多筛选条件" = "More Filters";
+"已启用的条件始终显示；此开关只展开其他选项。" = "Active filters always remain visible. This switch reveals additional options.";
+"选择小号、中号或大号，拖到桌面。" = "Choose Small, Medium, or Large and drag it to the desktop.";
+"小号显示一个日子；中号概览最多三条；大号每页五至十条，可按按钮翻页。" = "Small shows one event, Medium up to three, and Large five to ten per page with paging buttons.";
+"在“基本信息”填写标签，用逗号分隔；搜索可匹配名称或标签。在“显示 → 图标与颜色”选择预设，或点击“自定颜色…”打开系统色轮。保存才生效，取消保留原数据。" = "Enter comma-separated tags in Basics; search matches names and tags. In Display → Icon & Color, choose a preset or open the system color wheel with Custom Color…. Changes take effect only when saved.";
+"在编辑窗口的“显示 → 计数方式”选择天数、周 / 天或年 / 月 / 天。周年只用于日期每年重复的事件。年份与月份按实际日历计算，默认显示天数。" = "In the editor, choose days, weeks/days, or years/months/days under Display → Counting. Anniversary is available for yearly dates. Years and months follow the calendar; days remain the default.";
+"在编辑窗口的“提醒”页分别设置每日、每满一个月和每满一年的时间。每日显示通知当天的天数；满月与周年按原始日期计算，短月用月末，闰年恢复原日。通知权限、后台状态及已安排日期在设置的“通知与后台”查看。" = "Set daily, monthly, and yearly times in the editor’s Reminders tab. Daily notifications show that day’s count; milestones follow the original date, using month-end for short months. Find permission, background status, and scheduled coverage in Settings → Notifications & Background.";
+"在桌面右键选择“编辑小组件”，添加日距的小号、中号或大号组件。配置只显示当前尺寸和模式适用的选项；自动列表的标签与跳过条件在“更多筛选条件”中设置，已启用条件始终可见。图标、日期、当天精确计时可分别开关；全天事件不显示精确计时。" = "Right-click the desktop and choose Edit Widgets, then add DayDistance in Small, Medium, or Large. Configuration shows controls for the current size and mode. More Filters reveals tags and skipping; active filters stay visible. Icon, date, and same-day clock can be toggled separately. All-day events have no clock.";
+"诊断详情" = "Diagnostic Details";
+"排查说明" = "Troubleshooting";
+"事件设置分类" = "Event Settings";
+"添加一个日子" = "Add an Event";
+"显示" = "Display";
+
+"自定颜色" = "Custom Color";
+"当天 1 天 → 次日 2 天" = "Start day: 1 → Next day: 2";
+"当天 0 天 → 次日 1 天" = "Start day: 0 → Next day: 1";
+"小组件检查已集中到设置，避免重复检查。" = "Widget checks are available in Settings.";
+"打开小组件设置…" = "Open Widget Settings…";
+"事件与计数" = "Events & Counting";
+"提醒与后台" = "Reminders & Background";
+"小组件与菜单栏" = "Widgets & Menu Bar";
+"数据与恢复" = "Data & Recovery";
+"键盘与快捷操作" = "Keyboard & Shortcuts";
+
+// Smart Lists
+"%ld 个智能列表" = "%ld Smart Lists";
+"不包含" = "does not contain";
+"不大于" = "is at most";
+"不小于" = "is at least";
+"不等于" = "is not";
+"事件保持不变；使用此列表的小组件会提示列表不存在。" = "Events will be preserved. Widgets using this list will show that it is unavailable.";
+"事件导出仅包含事件，不包含智能列表。" = "Event exports do not include Smart Lists.";
+"介于" = "is between";
+"任一条件" = "any conditions";
+"保留旧版自动概览的条件；新规则请在日距中创建智能列表。" = "Preserves existing overview filters. Create a Smart List in DayDistance for new rules.";
+"全部条件" = "all conditions";
+"内容来源" = "Content Source";
+"列表名称" = "List Name";
+"删除智能列表" = "Delete Smart List";
+"删除智能列表？" = "Delete Smart List?";
+"包含" = "contains";
+"匹配 %ld 个，显示 %ld 个事件" = "%ld matching, %ld events shown";
+"匹配方式" = "Match";
+"单个事件" = "Single Event";
+"原有筛选选项" = "Legacy Filters";
+"否" = "No";
+"在日距侧栏创建智能列表，再在小组件的“内容来源”中选择“智能列表”。规则可由多个小组件共用。" = "Create a Smart List in the sidebar, then choose Smart Lists as the widget’s Content Source. Multiple widgets can use the same list.";
+"复制智能列表" = "Duplicate Smart List";
+"字段" = "Field";
+"完成" = "Done";
+"当前智能列表会先自动备份。事件保持不变。" = "Current Smart Lists will be backed up first. Events will be preserved.";
+"恢复仅替换智能列表，不修改事件。" = "Restoring replaces Smart Lists only. Events will be preserved.";
+"恢复智能列表备份？" = "Restore Smart List Backup?";
+"打开日距，编辑智能列表" = "Open DayDistance to edit this Smart List";
+"排序与跳过" = "Sort & Skip";
+"文字" = "Text";
+"新建智能列表" = "New Smart List";
+"新智能列表" = "New Smart List";
+"日期升序" = "Date, Earliest First";
+"日期状态" = "Date Status";
+"日期降序" = "Date, Latest First";
+"早于" = "is before";
+"是" = "Yes";
+"是否" = "Value";
+"显示内容" = "Content";
+"晚于" = "is after";
+"智能列表" = "Smart Lists";
+"智能列表不可用" = "Smart List Unavailable";
+"智能列表不存在" = "Smart List Unavailable";
+"智能列表备份" = "Smart List Backups";
+"智能列表条件无效，请检查名称、条件和范围。" = "Invalid Smart List. Check its name, conditions, and ranges.";
+"暂时无法读取智能列表" = "Smart Lists Temporarily Unavailable";
+"最近优先" = "Nearest First";
+"最远优先" = "Farthest First";
+"未来" = "Upcoming";
+"标准" = "Standard";
+"标题" = "Title";
+"标题排序" = "Title";
+"没有条件时匹配全部有效事件。" = "With no conditions, all active events match.";
+"添加条件" = "Add Condition";
+"满足以下" = "Match";
+"相距天数" = "Days Away";
+"移除条件" = "Remove Condition";
+"等于" = "is";
+"简洁" = "Compact";
+"编辑智能列表" = "Edit Smart List";
+"置顶优先" = "Pinned First";
+"自动排序" = "Automatic";
+"自定" = "Custom";
+"请在侧栏选择其他列表，或从智能列表备份恢复。" = "Choose another list in the sidebar, or restore a Smart List backup.";
+"请填写有效条件或检查日期范围。" = "Enter a valid condition or check the date range.";
+"跳过前几个事件" = "Skip First Events";
+"过去" = "Past";
+"运算符" = "Operator";
+"无法读取智能列表" = "Smart Lists Could Not Be Read";
+
+// Application language
+"语言" = "Language";
+"应用语言" = "App Language";
+"下次启动日距时生效，桌面小组件会随后刷新。" = "Takes effect the next time you open DayDistance. Desktop widgets refresh afterward.";
+"选择后立即生效，桌面小组件会随后刷新。" = "Changes apply immediately. Desktop widgets refresh afterward.";
+"无法应用语言，请重试。" = "Unable to apply the language. Try again.";
+
+"关于 %@" = "About %@";
+"设置…" = "Settings…";
+"隐藏 %@" = "Hide %@";
+"隐藏其他" = "Hide Others";
+"全部显示" = "Show All";
+"退出 %@" = "Quit %@";
+
+"关闭窗口" = "Close";
+"关闭所有窗口" = "Close All";
+
+"剪切" = "Cut";
+"拷贝" = "Copy";
+"粘贴" = "Paste";
+"删除文本" = "Delete";
+"全选" = "Select All";
+
+"软件更新" = "Software Update";
+
+"当前版本" = "Current Version";
+
+"自动检查更新" = "Automatically Check for Updates";
+
+"检查更新…" = "Check for Updates…";
+
+"上次检查" = "Last Checked";
+
+"应用打开时，每天检查 GitHub 上的新版本。发现更新后先询问，确认后下载、校验并安装。" = "While the app is open, check GitHub daily. Ask before downloading, verifying and installing an update.";
+
+"完成当前编辑后将安装更新并重新打开日距。" = "The update will install and DayDistance will reopen after you finish editing.";
+
+"更新服务暂不可用，请稍后重试。" = "The update service is unavailable. Please try again later.";

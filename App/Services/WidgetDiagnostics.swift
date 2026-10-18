@@ -98,17 +98,9 @@ struct WidgetDiagnostics {
     func export(_ report: DiagnosticReport, to destination: URL) throws {
         var protected = SharedContainer.protectedDataURLs()
         if let source = try? repository() { protected.append(source.fileURL) }
-        let allProtected = protected + protected.flatMap { [$0.appendingPathExtension("lock"), $0.appendingPathExtension("reminders.lock")] }
-        let resolved = destination.standardizedFileURL.resolvingSymlinksInPath()
-        let attributes = try? FileManager.default.attributesOfItem(atPath: resolved.path)
-        for url in allProtected {
-            let target = url.standardizedFileURL.resolvingSymlinksInPath()
-            let targetAttributes = try? FileManager.default.attributesOfItem(atPath: target.path)
-            let sameFile = attributes?[.systemFileNumber] as? NSNumber != nil
-                && attributes?[.systemFileNumber] as? NSNumber == targetAttributes?[.systemFileNumber] as? NSNumber
-                && attributes?[.systemNumber] as? NSNumber == targetAttributes?[.systemNumber] as? NSNumber
-            guard resolved != target, !sameFile else { throw EventError.protectedExportDestination }
-        }
+        let files = protected + ExportDestinationPolicy.smartListFiles(beside: protected)
+        try ExportDestinationPolicy.validate(destination, protectedFiles: files,
+            protectedDirectories: ExportDestinationPolicy.smartListBackupDirectories(beside: protected))
         try report.jsonData().write(to: destination, options: .atomic)
     }
 

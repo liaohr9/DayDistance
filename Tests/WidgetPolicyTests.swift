@@ -67,3 +67,92 @@ final class WidgetPolicyTests: XCTestCase {
         XCTAssertFalse(dates.contains(now.addingTimeInterval(-60)))
     }
 }
+
+final class WidgetFilterTests: XCTestCase {
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+    private func item(_ days: Double, tags: [String] = [], pinned: Bool = false) -> CountdownEvent {
+        CountdownEvent(title: "Event \(days)", targetDate: now.addingTimeInterval(days * 86400), isPinned: pinned, tags: tags)
+    }
+    func testTagsNormalizeAndRoundTrip() throws {
+        let event = try item(1, tags: [" 工作 ", "work", "WORK", "", "旅行"]).validated(now: now)
+        XCTAssertEqual(event.tags, ["工作", "work", "旅行"])
+        let encoded = try EventRepository.encodeSnapshot([event])
+        XCTAssertEqual(try EventRepository.decodeSnapshot(encoded), [event])
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        json["schemaVersion"] = 6
+        var entries = try XCTUnwrap(json["events"] as? [[String: Any]])
+        entries[0].removeValue(forKey: "tags"); json["events"] = entries
+        XCTAssertEqual(try EventRepository.decodeSnapshot(JSONSerialization.data(withJSONObject: json)).first?.tags, [])
+        XCTAssertEqual(CountdownEvent.parseTags("工作，旅行; Work\nwork"), ["工作", "旅行", "Work"])
+    }
+    func testTagLimitsRejectInsteadOfDroppingData() throws {
+        XCTAssertThrowsError(try item(1, tags: [String(repeating: "x", count: 41)]).validated(now: now))
+        XCTAssertThrowsError(try item(1, tags: (0..<31).map(String.init)).validated(now: now))
+    }
+    func testDefaultFilterKeepsLegacyOrder() {
+        let events = [item(-1), item(2), item(10, pinned: true)]
+        XCTAssertEqual(WidgetFilter().apply(events: events, now: now), WidgetPolicy.sorted(events: events, now: now))
+    }
+    func testAllAnyExcludeAndSkipCombineInOrder() {
+        let first = item(1, tags: ["工作", "会议"]), second = item(2, tags: ["工作", "会议"])
+        let excluded = item(3, tags: ["工作", "会议", "私人"]), other = item(0.5, tags: ["工作"])
+        var filter = WidgetFilter(includedTags: ["工作", "会议"], excludedTags: ["私人"], skip: 1)
+        XCTAssertEqual(filter.apply(events: [excluded, other, second, first], now: now), [second])
+        filter.tagMatch = .any; filter.skip = 0
+        XCTAssertEqual(filter.apply(events: [first, other], now: now), [other, first])
+        filter.includedTags = ["WORK"]
+        XCTAssertEqual(filter.apply(events: [item(1, tags: ["work"])], now: now).count, 1)
+    }
+    func testDateScopesAndInactiveNeverLeak() {
+        let past = item(-2), future = item(3)
+        var archived = item(1); archived.lifecycle = .archived
+        var trash = item(2); trash.lifecycle = .trashed
+        XCTAssertEqual(WidgetFilter(scope: .upcoming).apply(events: [past, future, archived, trash], now: now), [future])
+        XCTAssertEqual(WidgetFilter(scope: .past).apply(events: [past, future], now: now), [past])
+    }
+    func testNearestFarthestAndPinnedAreExplicit() {
+        let past = item(-1), future = item(3), pinned = item(10, pinned: true)
+        var filter = WidgetFilter(sort: .nearest, prioritizePinned: false)
+        XCTAssertEqual(filter.apply(events: [future, pinned, past], now: now), [past, future, pinned])
+        filter.prioritizePinned = true
+        XCTAssertEqual(filter.apply(events: [future, past, pinned], now: now).first, pinned)
+        filter.sort = .farthest; filter.prioritizePinned = false
+        XCTAssertEqual(filter.apply(events: [past, future, pinned], now: now), [pinned, future, past])
+    }
+    func testSkipBoundsAndEmptyTagConditions() {
+        let event = item(1)
+        XCTAssertEqual(WidgetFilter(skip: -1).apply(events: [event], now: now), [event])
+        XCTAssertTrue(WidgetFilter(skip: Int.max).apply(events: [event], now: now).isEmpty)
+        XCTAssertEqual(WidgetFilter(includedTags: ["  "]).apply(events: [event], now: now), [event])
+    }
+    func testPaginationIsBoundedAndIndependent() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = WidgetPageStore(directory: directory), first = UUID().uuidString, second = UUID().uuidString
+        try store.save(page: 2, id: first, signature: "A")
+        XCTAssertEqual(store.load(id: first, signature: "A"), 2)
+        XCTAssertEqual(store.load(id: second, signature: "A"), 0)
+        XCTAssertEqual(store.load(id: first, signature: "B"), 0)
+        XCTAssertThrowsError(try store.save(page: 1, id: "../events", signature: "A"))
+        let values = (1...13).map { item(Double($0)) }
+        XCTAssertEqual(WidgetPage(events: values, page: 2, pageSize: 6).events, [values[12]])
+        XCTAssertEqual(WidgetPage(events: values, page: Int.max, pageSize: 6).index, 2)
+        XCTAssertEqual(WidgetPage(events: [], page: 99, pageSize: 0).count, 1)
+        XCTAssertNotEqual(WidgetFilter().signature(pageSize: 6), WidgetFilter().signature(pageSize: 10))
+    }
+    func testPageIdentitySurvivesReloadAndConfigurationRoundTrip() throws {
+        let filter = WidgetFilter(includedTags: ["Work"], sort: .nearest, prioritizePinned: false, skip: 1)
+        let restored = try JSONDecoder().decode(WidgetFilter.self, from: JSONEncoder().encode(filter))
+        let id = filter.pageIdentifier(pageSize: 6)
+        XCTAssertNotNil(UUID(uuidString: id))
+        XCTAssertEqual(id, restored.pageIdentifier(pageSize: 6))
+        XCTAssertNotEqual(id, filter.pageIdentifier(pageSize: 10))
+        XCTAssertNotEqual(id, WidgetFilter().pageIdentifier(pageSize: 6))
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = WidgetPageStore(directory: directory)
+        try store.save(page: 2, id: id, signature: filter.signature(pageSize: 6))
+        XCTAssertEqual(store.load(id: restored.pageIdentifier(pageSize: 6), signature: restored.signature(pageSize: 6)), 2)
+    }
+
+}

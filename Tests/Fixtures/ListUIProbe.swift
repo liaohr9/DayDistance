@@ -27,7 +27,7 @@ struct ListUIProbe: App {
                 try! Data("{\"schemaVersion\":".utf8).write(to: source, options: .atomic)
             } else {
                 var envelope = try! JSONSerialization.jsonObject(with: baseline) as! [String: Any]
-                envelope["schemaVersion"] = 7
+                envelope["schemaVersion"] = 8
                 try! JSONSerialization.data(withJSONObject: envelope).write(to: source, options: .atomic)
             }
         }

@@ -18,11 +18,16 @@ final class EventStore {
     var backupRepository: LocalBackupRepository? { repository.map { LocalBackupRepository(eventFileURL: $0.fileURL) } }
     func listBackups() throws -> [LocalBackup] { try backupRepository?.list() ?? [] }
     @discardableResult func restoreBackup(_ backup: LocalBackup) -> Bool {
-        guard isLoaded, editingEvent == nil, !isTransferring, let backupRepository else { return false }
+        guard isLoaded, editingEvent == nil, !isTransferring, !isSmartListModalPresented, let backupRepository else { return false }
         do { return persist(try backupRepository.load(backup), name: L10n.text("恢复备份")) }
         catch { errorMessage = L10n.format("恢复失败，原数据已保留：%@", error.localizedDescription); return false }
     }
+    func smartListRepository() -> SmartListRepository? {
+        repository.map { SmartListRepository(fileURL: $0.fileURL.deletingLastPathComponent().appendingPathComponent("smart-lists.json")) }
+    }
+    var isSmartListModalPresented = false
     private var repository: EventRepository?
+    var canManageData: Bool { isLoaded && editingEvent == nil && !isTransferring && !isShowingBackups && !isHistoryModalPresented && !isSmartListModalPresented }
     var isHistoryModalPresented = false
     @ObservationIgnored let eventUndoManager = EventHistoryUndoManager()
 
@@ -30,17 +35,17 @@ final class EventStore {
         self.repository = repository
         eventUndoManager.shouldPerformHistory = { [weak self] in
             guard let self else { return false }
-            return self.isLoaded && self.editingEvent == nil && !self.isTransferring && !self.isHistoryModalPresented && !self.isShowingBackups
+            return self.isLoaded && self.editingEvent == nil && !self.isTransferring && !self.isHistoryModalPresented && !self.isSmartListModalPresented && !self.isShowingBackups
         }
         if automaticallyLoad { reload() }
     }
     var protectedExportDataURLs: [URL] { SharedContainer.protectedDataURLs() + (repository.map { [$0.fileURL] } ?? []) }
     func exportEvents(to destination: URL) throws {
-        guard isLoaded, editingEvent == nil, !isTransferring, let repository else { throw EventError.unavailableContainer }
+        guard isLoaded, editingEvent == nil, !isTransferring, !isSmartListModalPresented, let repository else { throw EventError.unavailableContainer }
         try repository.exportSnapshot(to: destination, protecting: SharedContainer.protectedDataURLs())
     }
     func importEvents(_ data: Data) -> Int? {
-        guard isLoaded, editingEvent == nil, !isTransferring, let repository else { return nil }
+        guard isLoaded, editingEvent == nil, !isTransferring, !isSmartListModalPresented, let repository else { return nil }
         do {
             let loaded = try repository.importSnapshot(data, replacing: events)
             let count = loaded.count - events.count
@@ -74,17 +79,17 @@ final class EventStore {
         }
     }
     func newEvent() {
-        guard isLoaded, editingEvent == nil, !isTransferring, !isShowingBackups, !isHistoryModalPresented else { return }
+        guard isLoaded, editingEvent == nil, !isTransferring, !isShowingBackups, !isHistoryModalPresented && !isSmartListModalPresented else { return }
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
         editingEvent = EventEditSession(event: CountdownEvent(title: "", targetDate: tomorrow), isNew: true)
     }
     func edit(_ event: CountdownEvent) {
-        guard isLoaded, editingEvent == nil, !isTransferring, !isShowingBackups, !isHistoryModalPresented else { return }
+        guard isLoaded, editingEvent == nil, !isTransferring, !isShowingBackups, !isHistoryModalPresented && !isSmartListModalPresented else { return }
         editingEvent = EventEditSession(event: event)
     }
     @discardableResult
     func upsert(_ event: CountdownEvent, replacing original: CountdownEvent?) -> Bool {
-        guard isLoaded, !isTransferring else { return false }
+        guard isLoaded, !isTransferring, !isSmartListModalPresented else { return false }
         do {
             guard events.first(where: { $0.id == event.id }) == original else { throw EventError.changedData }
             let value = try event.validated(now: Date())
@@ -103,7 +108,7 @@ final class EventStore {
     }
     @discardableResult
     func delete(_ event: CountdownEvent) -> Bool {
-        guard isLoaded, !isTransferring else { return false }
+        guard isLoaded, !isTransferring, !isSmartListModalPresented else { return false }
         guard events.first(where: { $0.id == event.id }) == event else {
             refreshAfterConflict()
             errorMessage = EventError.changedData.localizedDescription
@@ -118,13 +123,13 @@ final class EventStore {
         return persist(events.map { $0.id == event.id ? value : $0 }, name: L10n.text("移到回收站"))
     }
     @discardableResult func archive(_ event: CountdownEvent) -> Bool {
-        guard editingEvent == nil, !isShowingBackups, !isHistoryModalPresented, event.lifecycle != .trashed else { return false }
+        guard editingEvent == nil, !isShowingBackups, !isHistoryModalPresented && !isSmartListModalPresented, event.lifecycle != .trashed else { return false }
         var value = event
         value.lifecycle = event.lifecycle == .archived ? .active : .archived
         return upsert(value, replacing: event)
     }
     @discardableResult func recover(_ event: CountdownEvent) -> Bool {
-        guard editingEvent == nil, !isShowingBackups, !isHistoryModalPresented, event.lifecycle == .trashed else { return false }
+        guard editingEvent == nil, !isShowingBackups, !isHistoryModalPresented && !isSmartListModalPresented, event.lifecycle == .trashed else { return false }
         var value = event
         value.lifecycle = event.wasArchivedBeforeTrash ? .archived : .active
         value.trashedAt = nil
@@ -132,7 +137,7 @@ final class EventStore {
         return upsert(value, replacing: event)
     }
     @discardableResult func permanentlyDelete(_ event: CountdownEvent) -> Bool {
-        guard isLoaded, !isTransferring, editingEvent == nil, event.lifecycle == .trashed else { return false }
+        guard isLoaded, !isTransferring, !isSmartListModalPresented, editingEvent == nil, event.lifecycle == .trashed else { return false }
         guard events.first(where: { $0.id == event.id }) == event else {
             refreshAfterConflict(); errorMessage = EventError.changedData.localizedDescription; return false
         }
@@ -140,7 +145,7 @@ final class EventStore {
     }
     /// All selected baselines are checked before one save and one undo group.
     @discardableResult func batch(_ operation: EventBatchOperation, events selected: [CountdownEvent]) -> Bool {
-        guard isLoaded, editingEvent == nil, !isTransferring, !isShowingBackups, !isHistoryModalPresented,
+        guard isLoaded, editingEvent == nil, !isTransferring, !isShowingBackups, !isHistoryModalPresented && !isSmartListModalPresented,
               !selected.isEmpty, Set(selected.map(\.id)).count == selected.count else { return false }
         guard selected.allSatisfy({ expected in events.first(where: { $0.id == expected.id }) == expected }) else {
             refreshAfterConflict(); errorMessage = EventError.changedData.localizedDescription; return false
@@ -186,7 +191,7 @@ final class EventStore {
     }
 
     func duplicate(_ event: CountdownEvent) {
-        guard isLoaded, editingEvent == nil, !isTransferring, !isShowingBackups, !isHistoryModalPresented,
+        guard isLoaded, editingEvent == nil, !isTransferring, !isShowingBackups, !isHistoryModalPresented && !isSmartListModalPresented,
               event.lifecycle != .trashed, events.contains(event) else { return }
         var draft = event
         draft.id = UUID(); draft.title = L10n.format("%@ 副本", event.title)
@@ -217,7 +222,7 @@ final class EventStore {
         if opensGroup { manager.endUndoGrouping() }
     }
     private func restore(_ snapshot: [CountdownEvent], replacing expected: [CountdownEvent], name: String, manager: UndoManager?) {
-        guard isLoaded, editingEvent == nil, !isTransferring, !isHistoryModalPresented, let repository else { return }
+        guard isLoaded, editingEvent == nil, !isTransferring, !isHistoryModalPresented && !isSmartListModalPresented, let repository else { return }
         do {
             guard events == expected else { throw EventError.changedData }
             try repository.save(snapshot, replacing: expected)
@@ -261,7 +266,7 @@ final class EventStore {
         } catch { isLoaded = false }
     }
     func open(_ url: URL) {
-        guard isLoaded, editingEvent == nil, !isTransferring, !isShowingBackups, !isHistoryModalPresented else { return }
+        guard isLoaded, editingEvent == nil, !isTransferring, !isShowingBackups, !isHistoryModalPresented && !isSmartListModalPresented else { return }
         guard url.scheme == "daydistance", url.host == "event",
               let id = UUID(uuidString: url.lastPathComponent), let event = events.first(where: { $0.id == id }) else {
             if url.host == "event" { editingEvent = nil; errorMessage = L10n.text("该事件不存在或已被删除。") }

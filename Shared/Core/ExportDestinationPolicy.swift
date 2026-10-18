@@ -2,6 +2,12 @@ import Foundation
 
 /// Prevent an image or diagnostic export from replacing live data or recovery snapshots.
 enum ExportDestinationPolicy {
+    static func smartListFiles(beside files: [URL]) -> [URL] {
+        files.map { $0.deletingLastPathComponent().appendingPathComponent("smart-lists.json") }
+    }
+    static func smartListBackupDirectories(beside files: [URL]) -> [URL] {
+        files.map { $0.deletingLastPathComponent().appendingPathComponent("smart-list-backups", isDirectory: true) }
+    }
     // Foundation can leave symlink parents unresolved when the final file does not exist.
     private static func resolve(_ url: URL) -> URL {
         var ancestor = url.standardizedFileURL
@@ -16,7 +22,8 @@ enum ExportDestinationPolicy {
     }
     static func validate(_ destination: URL, protectedFiles: [URL], protectedDirectories: [URL] = []) throws {
         let resolved = resolve(destination)
-        let files = protectedFiles + protectedFiles.flatMap { [$0.appendingPathExtension("lock"), $0.appendingPathExtension("reminders.lock")] }
+        let files = protectedFiles + protectedFiles.map { AppLanguage.appliedFile(beside: $0) }
+            + protectedFiles.flatMap { [$0.appendingPathExtension("lock"), $0.appendingPathExtension("reminders.lock")] }
         let directories = protectedDirectories.map { resolve($0) }
         for folder in directories {
             guard resolved != folder, !resolved.path.hasPrefix(folder.path + "/") else { throw EventError.protectedExportDestination }

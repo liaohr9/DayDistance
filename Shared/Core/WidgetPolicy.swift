@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 enum WidgetSelection: Equatable { case event(CountdownEvent), empty, missing }
 enum EventSortOrder: String, CaseIterable, Identifiable {
@@ -7,20 +8,27 @@ enum EventSortOrder: String, CaseIterable, Identifiable {
     var label: String { L10n.text(self == .date ? "按日期" : "按创建时间") }
 }
 enum WidgetPolicy {
-    static func sorted(events: [CountdownEvent], now: Date, order: EventSortOrder = .date, includingInactive: Bool = false) -> [CountdownEvent] {
-        events.filter { includingInactive || $0.isActive }.sorted { left, right in
-            if left.isPinned != right.isPinned { return left.isPinned }
-            if order == .created {
+    static func sorted(events: [CountdownEvent], now: Date, order: EventSortOrder = .date, includingInactive: Bool = false, prioritizePinned: Bool = true) -> [CountdownEvent] {
+        // Resolve calendar occurrences once per event, rather than four times per comparison.
+        let candidates = events.filter { includingInactive || $0.isActive }
+        if order == .created {
+            return candidates.sorted { left, right in
+                if prioritizePinned && left.isPinned != right.isPinned { return left.isPinned }
                 if left.createdAt != right.createdAt { return left.createdAt > right.createdAt }
                 return left.id.uuidString < right.id.uuidString
             }
-            let leftDate = left.countdownDate(now: now), rightDate = right.countdownDate(now: now)
-            let leftFuture = left.isUpcoming(at: now), rightFuture = right.isUpcoming(at: now)
-            if leftFuture != rightFuture { return leftFuture }
-            if leftDate == rightDate { return left.id.uuidString < right.id.uuidString }
-            return leftFuture ? leftDate < rightDate : leftDate > rightDate
         }
+        return candidates.map { event in
+            let date = event.countdownDate(now: now)
+            return (event: event, date: date, future: event.repeatYearly || date > now)
+        }.sorted { left, right in
+            if prioritizePinned && left.event.isPinned != right.event.isPinned { return left.event.isPinned }
+            if left.future != right.future { return left.future }
+            if left.date == right.date { return left.event.id.uuidString < right.event.id.uuidString }
+            return left.future ? left.date < right.date : left.date > right.date
+        }.map(\.event)
     }
+
     static func selection(events: [CountdownEvent], explicitID: String?, now: Date) -> WidgetSelection {
         if let explicitID {
             guard let event = events.first(where: { $0.isActive && $0.id.uuidString == explicitID }) else { return .missing }
@@ -44,5 +52,105 @@ enum WidgetPolicy {
         }
         // Reload at the final entry, even if the budget truncates the 48-hour horizon.
         return Array(dates.sorted().prefix(64))
+    }
+}
+
+enum WidgetDateScope: String, Codable, CaseIterable, Sendable { case all, upcoming, past }
+enum WidgetTagMatch: String, Codable, CaseIterable, Sendable { case all, any }
+enum WidgetSort: String, Codable, CaseIterable, Sendable {
+    case automatic, nearest, farthest, dateAscending, dateDescending, createdNewest, title
+}
+
+/// Conditions are ANDed, then sorted, then skipped. Pagination never changes event data.
+struct WidgetFilter: Codable, Equatable, Sendable {
+    var scope = WidgetDateScope.all
+    var includedTags: [String] = []
+    var tagMatch = WidgetTagMatch.all
+    var excludedTags: [String] = []
+    var sort = WidgetSort.automatic
+    var prioritizePinned = true
+    var skip = 0
+
+    func apply(events: [CountdownEvent], now: Date) -> [CountdownEvent] {
+        let include = Set(CountdownEvent.normalizedTags(includedTags).map(CountdownEvent.tagIdentity))
+        let exclude = Set(CountdownEvent.normalizedTags(excludedTags).map(CountdownEvent.tagIdentity))
+        let matching = events.filter { event in
+            guard event.isActive else { return false }
+            if scope == .upcoming && !event.isUpcoming(at: now) { return false }
+            if scope == .past && event.isUpcoming(at: now) { return false }
+            let tags = Set(event.tags.map(CountdownEvent.tagIdentity))
+            guard exclude.isDisjoint(with: tags) else { return false }
+            return include.isEmpty || (tagMatch == .all ? include.isSubset(of: tags) : !include.isDisjoint(with: tags))
+        }
+        let ordered: [CountdownEvent]
+        if sort == .automatic {
+            ordered = WidgetPolicy.sorted(events: matching, now: now, prioritizePinned: prioritizePinned)
+        } else {
+            ordered = matching.sorted { left, right in
+                if prioritizePinned && left.isPinned != right.isPinned { return left.isPinned }
+                let ld = left.countdownDate(now: now), rd = right.countdownDate(now: now)
+                switch sort {
+                case .nearest, .farthest:
+                    let l = abs(ld.timeIntervalSince(now)), r = abs(rd.timeIntervalSince(now))
+                    if l != r { return sort == .nearest ? l < r : l > r }
+                case .dateAscending, .dateDescending:
+                    if ld != rd { return sort == .dateAscending ? ld < rd : ld > rd }
+                case .createdNewest:
+                    if left.createdAt != right.createdAt { return left.createdAt > right.createdAt }
+                case .title:
+                    let result = left.title.localizedStandardCompare(right.title)
+                    if result != .orderedSame { return result == .orderedAscending }
+                case .automatic: break
+                }
+                return left.id.uuidString < right.id.uuidString
+            }
+        }
+        return Array(ordered.dropFirst(min(max(skip, 0), ordered.count)))
+    }
+    /// Derive page identity from persisted settings, not a hidden random intent parameter.
+    /// Identical rules and page sizes share a position; different rules stay independent.
+    func pageIdentifier(pageSize: Int) -> String {
+        let digest = SHA256.hash(data: Data(signature(pageSize: pageSize).utf8))
+        let hex = digest.prefix(16).map { String(format: "%02X", $0) }.joined()
+        return "\(hex.prefix(8))-\(hex.dropFirst(8).prefix(4))-\(hex.dropFirst(12).prefix(4))-\(hex.dropFirst(16).prefix(4))-\(hex.suffix(12))"
+    }
+    func signature(pageSize: Int) -> String {
+        // Include every condition and page size so changing a widget returns to page one.
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        return String(data: (try? encoder.encode(self)) ?? Data(), encoding: .utf8)! + ":\(pageSize)"
+    }
+}
+
+struct WidgetPage {
+    let events: [CountdownEvent]
+    let index: Int
+    let count: Int
+    init(events: [CountdownEvent], page: Int, pageSize: Int) {
+        let size = min(max(pageSize, 5), 10)
+        count = max(1, (events.count + size - 1) / size)
+        index = min(max(page, 0), count - 1)
+        self.events = Array(events.dropFirst(index * size).prefix(size))
+    }
+}
+
+/// Only per-widget presentation state is written here, never the event JSON or locks.
+struct WidgetPageStore {
+    let directory: URL
+    private struct State: Codable { let page: Int; let signature: String }
+    private func file(id: String) throws -> URL {
+        guard let uuid = UUID(uuidString: id) else { throw CocoaError(.fileWriteInvalidFileName) }
+        return directory.appendingPathComponent(uuid.uuidString + ".json")
+    }
+    func load(id: String, signature: String) -> Int {
+        guard let url = try? file(id: id), let data = try? Data(contentsOf: url), data.count < 65536,
+              let value = try? JSONDecoder().decode(State.self, from: data), value.signature == signature else { return 0 }
+        return max(0, min(value.page, 1_000_000))
+    }
+    func save(page: Int, id: String, signature: String) throws {
+        let url = try file(id: id)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        guard (try directory.resourceValues(forKeys: [.isSymbolicLinkKey])).isSymbolicLink != true else { throw CocoaError(.fileWriteNoPermission) }
+        try JSONEncoder().encode(State(page: max(0, min(page, 1_000_000)), signature: signature)).write(to: url, options: .atomic)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
     }
 }

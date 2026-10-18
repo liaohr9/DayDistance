@@ -23,10 +23,10 @@ def main():
     sdk_flags = ["-sdk", str(args.sdk)] if args.sdk else []
     project = Path(__file__).resolve().parent.parent
     env = os.environ.copy()
-    env.setdefault("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Developer")
+    env.setdefault("DEVELOPER_DIR", "/Volumes/haoran 1/Applications/Xcode.app/Contents/Developer")
     sources = sorted((project / "Shared/Core").glob("*.swift"))
     sources += sorted((project / "Shared/Presentation").glob("*.swift"))
-    sources += [project / "Shared/Platform/SharedContainer.swift", project / "App/Stores/EventStore.swift"]
+    sources += [project / "Shared/Platform/SharedContainer.swift"] + sorted((project / "App/Stores").glob("*.swift"))
     sources += sorted((project / "App/Views").glob("*.swift"))
     sources += sorted((project / "App/Services").glob("*.swift"))
     if args.mode != "lifecycle":
@@ -49,7 +49,7 @@ def main():
         }))
         if args.mode != "list":
             subprocess.run(["/usr/bin/xcrun", "swiftc", "-parse-as-library", *sdk_flags,
-                            str(project / "Shared/Core/L10n.swift"), str(project / "Shared/Core/Event.swift"), str(project / "Shared/Core/EventDates.swift"), str(project / "Shared/Core/EventRepository.swift"),
+                            str(project / "Shared/Core/L10n.swift"), str(project / "Shared/Core/Event.swift"), str(project / "Shared/Core/EventDates.swift"), str(project / "Shared/Core/EventRepository.swift"), str(project / "Shared/Core/ExportDestinationPolicy.swift"),
                             str(project / "Tests/Fixtures/UIWriterProbe.swift"), "-o", str(Path(temporary) / "writer")],
                            env=env, check=True, timeout=90)
         print(f"Temporary UI probe: {app}", flush=True)

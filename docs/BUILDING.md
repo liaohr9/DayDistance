@@ -1,5 +1,7 @@
 # 构建与发行
 
+当前源码仅构建 Apple Silicon（arm64），主应用与 Widget 扩展一致；新开发预览文件名使用 `macOS-arm64-preview`。下方 v1.8.1 为历史发布记录。
+
 ## 三种配置
 
 | 配置 | 存储与签名 | 适用范围 |
@@ -56,6 +58,12 @@ xcodebuild -project DayDistance.xcodeproj -scheme DayDistance \
 
 正式App Group为 `${RELEASE_TEAM}.local.daydistance.shared`。正式版不依赖开发目录例外，主应用和扩展的容器、entitlement及版本必须一致。
 
-用真实归档执行 `script/prepare_release.py --help`，先以 `--stage notarization-input` 检查，完成Apple公证并staple实际App后，再以 `--stage distribution` 检查。预检会检查两架构签名、证书链、Runtime、时间戳、部署目标、共享组、嵌套代码、票据与Gatekeeper；缺任何必要条件都会拒绝正式打包。
+用真实归档执行 `script/prepare_release.py --help`，先以 `--stage notarization-input` 检查，完成Apple公证并staple实际App后，再以 `--stage distribution` 检查。预检仅接受 arm64，并检查签名、证书链、Runtime、时间戳、部署目标、共享组、嵌套代码、票据与Gatekeeper；缺任何必要条件都会拒绝正式打包。
 
 正式Release前还需要实际验证：干净安装、升级与JSON导入迁移、真实App Group读写、桌面组件配置ID/timeline/可见日期、不同受支持系统、后台与通知跨退出送达。开发预览不能替代这些验收。
+
+## 编辑窗口回归
+
+必须从主列表实际双击事件后再检查输入与空闲 CPU；直接调用 `store.edit` 的程序测试不能替代这条路径。菜单焦点依赖已移到独立 Commands，避免选择/焦点状态回传重建整个 Scene。文本与撤销通知只更新菜单状态。
+
+每次修改菜单或编辑呈现时，检查：双击后名称可输入、取消不写入、保存可重开、文本 ⌘Z/⇧⌘Z、事件历史撤销、多选禁用编辑、⌘E 和 ⌘F。空闲后应没有持续布局刷新；系统 Sheet 动画仍保留。

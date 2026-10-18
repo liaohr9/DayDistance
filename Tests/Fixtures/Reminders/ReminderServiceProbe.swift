@@ -41,6 +41,9 @@ import UserNotifications
         let request = client.pending[initialID]!
         precondition(request.content.userInfo["eventID"] as? String == event.id.uuidString)
         precondition((request.trigger as? UNCalendarNotificationTrigger)?.dateComponents.timeZone == zone)
+        let afterInitial = client.addCount
+        await service.sync(events: [event])
+        precondition(client.addCount == afterInitial, "Identical pending notifications must not be re-submitted")
         event.title = "Title Only"
         await service.sync(events: [event])
         precondition(client.pending[initialID]?.content.title == "Title Only")
@@ -152,7 +155,9 @@ import UserNotifications
         _ = service.displayMessage(backgroundRefreshEnabled: false)
         precondition(client.addCount == beforePresentation, "Presenting status must not touch the notification queue")
         client.failAdds = true
-        await service.sync(events: [dailyEvent])
+        var failingDaily = dailyEvent
+        failingDaily.title = "Changed request must retry"
+        await service.sync(events: [failingDaily])
         precondition(service.displayMessage(backgroundRefreshEnabled: true)?.contains("安排失败") == true)
         client.failAdds = false
         client.status = .denied
@@ -198,10 +203,13 @@ import UserNotifications
         await diskService.sync(events: [])
         precondition(Set(diskClient.pending.keys) == beforeReadError && diskService.statusMessage != nil)
         try! baseline.write(to: repository.fileURL)
+        var diskEdited = dailyEvent
+        diskEdited.title = "Changed on disk"
+        try! repository.save([diskEdited], replacing: [dailyEvent])
         diskClient.blockNextAdd = true
         let pendingRefresh = Task { await diskService.sync(events: [dailyEvent]) }
         while diskClient.blocked == nil { await Task.yield() }
-        try! repository.save([], replacing: [dailyEvent])
+        try! repository.save([], replacing: [diskEdited])
         let secondService = EventReminderService(client: diskClient, now: { now }, timeZone: { zone }, repositoryProvider: { repository })
         let secondRefresh = Task { await secondService.sync(events: [dailyEvent]) }
         diskClient.unblock()

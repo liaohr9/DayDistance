@@ -12,10 +12,10 @@ import time
 def main():
     project = Path(__file__).resolve().parent.parent
     environment = os.environ.copy()
-    environment.setdefault("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Developer")
-    sources = ["Shared/Core/L10n.swift", "Shared/Core/LocalBackupRepository.swift", "App/Services/EventHistoryUndoManager.swift", "Shared/Core/Event.swift", "Shared/Core/EventDates.swift", "Shared/Core/EventRepository.swift",
-               "Shared/Platform/SharedContainer.swift", "App/Stores/EventStore.swift",
-               "Tests/Fixtures/StorageProbe.swift"]
+    environment.setdefault("DEVELOPER_DIR", "/Volumes/haoran 1/Applications/Xcode.app/Contents/Developer")
+    sources = [str(s.relative_to(project)) for s in sorted((project / "Shared/Core").glob("*.swift"))]
+    sources += ["App/Services/EventHistoryUndoManager.swift", "Shared/Platform/SharedContainer.swift",
+                "App/Stores/EventStore.swift", "Tests/Fixtures/StorageProbe.swift"]
     with tempfile.TemporaryDirectory(suffix=".noindex") as temporary:
         root = Path(temporary)
         binary = str(root / "probe")

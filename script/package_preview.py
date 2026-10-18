@@ -25,7 +25,7 @@ def verify(app):
         assert details['CFBundleShortVersionString'] == info['CFBundleShortVersionString']
         assert details['CFBundleVersion'] == info['CFBundleVersion']
         binary = bundle / 'Contents/MacOS' / details['CFBundleExecutable']
-        assert set(run('/usr/bin/lipo', '-archs', str(binary)).stdout.decode().split()) == {'arm64', 'x86_64'}
+        assert set(run('/usr/bin/lipo', '-archs', str(binary)).stdout.decode().split()) == {'arm64'}
         entitlements = plistlib.loads(run('/usr/bin/codesign', '-d', '--entitlements', ':-', str(bundle)).stdout)
         assert entitlements.get('com.apple.security.app-sandbox') is True
         assert not entitlements.get('com.apple.security.get-task-allow')
@@ -42,7 +42,7 @@ def main():
     args = parser.parse_args()
     info = verify(args.app)
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=True)
-    stem = f"DayDistance-{info['CFBundleShortVersionString']}-macOS-universal-preview"
+    stem = f"DayDistance-{info['CFBundleShortVersionString']}-macOS-arm64-preview"
     archive = output / (stem + '.zip'); image = output / (stem + '.dmg')
     sums = output / 'SHA256SUMS.txt'; manifest = output / 'BUILD_INFO.json'
     if any(f.exists() for f in [archive, image, sums, manifest]):
@@ -73,7 +73,7 @@ def main():
     records = [{'name': f.name, 'bytes': f.stat().st_size, 'sha256': hashlib.sha256(f.read_bytes()).hexdigest()} for f in [image, archive]]
     sums.write_text(''.join(f"{r['sha256']}  {r['name']}\n" for r in records))
     manifest.write_text(json.dumps({'version': info['CFBundleShortVersionString'], 'build': info['CFBundleVersion'],
-        'channel': 'unnotarized-developer-preview', 'architectures': ['arm64', 'x86_64'],
+        'channel': 'unnotarized-developer-preview', 'architectures': ['arm64'],
         'storage': 'local', 'developerID': False, 'notarized': False,
         'signatureVerification': 'strict nested signature and ZIP roundtrip passed', 'artifacts': records}, indent=2) + '\n')
     print(json.dumps(records, indent=2))

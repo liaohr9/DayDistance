@@ -34,6 +34,12 @@ struct VimKeySequence {
 struct VimListNavigation {
     var cursor: UUID?
     var anchor: UUID?
+    mutating func reconcile(ids: [UUID], selected: inout Set<UUID>) {
+        let visible = Set(ids)
+        selected.formIntersection(visible)
+        if let cursor, !visible.contains(cursor) { self.cursor = nil }
+        if let anchor, !visible.contains(anchor) { self.anchor = nil }
+    }
     mutating func move(_ step: Int, ids: [UUID], selected: inout Set<UUID>) {
         guard !ids.isEmpty else { cursor = nil; anchor = nil; selected = []; return }
         let current = cursor.flatMap { ids.firstIndex(of: $0) }

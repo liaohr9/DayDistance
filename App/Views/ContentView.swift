@@ -34,6 +34,15 @@ extension FocusedValues {
 
 struct ContentView: View {
     @Bindable var store: EventStore
+    @State private var smartStore: SmartListStore
+    @State private var smartSelection: UUID?
+    init(store: EventStore) {
+        self.store = store
+        _smartStore = State(initialValue: SmartListStore(repositoryProvider: { [weak store] in
+            guard store?.isLoaded == true else { return nil }
+            return store?.smartListRepository()
+        }))
+    }
     @AppStorage("eventSortOrder") private var sortOrder = EventSortOrder.date
     @AppStorage("hasShownWidgetHint") private var hasShownWidgetHint = false
     @State private var showWidgetHint = false
@@ -41,6 +50,7 @@ struct ContentView: View {
     @Environment(\.openWindow) private var openWindow
     @State private var filter: EventFilter? = .all
     @State private var search = ""
+    @State private var calendarReference = Date.distantPast
     @State private var selectedIDs: Set<UUID> = []
     @State private var vimNavigation = VimListNavigation()
     @State private var vimSequence = VimKeySequence()
@@ -50,18 +60,41 @@ struct ContentView: View {
     @State private var isImporting = false
     @State private var transferMessage: String?
     @FocusState private var eventListFocused: Bool
-    private var selectedEvents: [CountdownEvent] { store.events.filter { selectedIDs.contains($0.id) } }
+    private var selectedEvents: [CountdownEvent] {
+        guard smartSelection == nil || smartStore.isLoaded else { return [] }
+        return store.events.filter { selectedIDs.contains($0.id) }
+    }
+    // Recheck time-sensitive rules at the action boundary as well as on timeline updates.
+    private var currentSelectedEvents: [CountdownEvent] { visibleEvents(now: Date()).filter { selectedIDs.contains($0.id) } }
+    private var currentSelectedEvent: CountdownEvent? {
+        let events = currentSelectedEvents
+        return events.count == 1 ? events.first : nil
+    }
     private var selectedEvent: CountdownEvent? { selectedEvents.count == 1 ? selectedEvents.first : nil }
     private var deletingPermanently: Bool { pendingDelete?.allSatisfy { $0.lifecycle == .trashed } == true }
-    private var isPresentingModal: Bool { store.editingEvent != nil || pendingDelete != nil || store.isTransferring || transferMessage != nil || store.isShowingBackups || shareEvent != nil }
+    private var isPresentingModal: Bool { store.editingEvent != nil || pendingDelete != nil || store.isTransferring || transferMessage != nil || store.isShowingBackups || shareEvent != nil || smartStore.isPresentingModal }
 
     var body: some View {
         navigationContent
+        .onAppear { smartStore.reload() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            if !isPresentingModal { smartStore.reload() }
+        }
+        .onChange(of: store.isLoaded) { if store.isLoaded { smartStore.reload() } }
+        .onChange(of: smartStore.isPresentingModal) { store.isSmartListModalPresented = smartStore.isPresentingModal }
+        .onChange(of: smartSelection) { clearSelection() }
+        .onChange(of: smartStore.lists) { selectedIDs.formIntersection(Set(visibleEvents(now: Date()).map(\.id))) }
+        .sheet(isPresented: Binding(get: { smartStore.draft != nil }, set: { if !$0 { smartStore.cancel() } })) { SmartListEditor(store: smartStore, events: store.events).appLanguage() }
+        .sheet(isPresented: $smartStore.isShowingBackups) { SmartListBackupsView(store: smartStore).appLanguage() }
+        .alert(L10n.text("删除智能列表？"), isPresented: Binding(get: { smartStore.pendingDelete != nil }, set: { if !$0 { smartStore.pendingDelete = nil } })) {
+            Button(L10n.text("取消"), role: .cancel) { smartStore.pendingDelete = nil }
+            Button(L10n.text("删除"), role: .destructive) { _ = smartStore.confirmDelete() }
+        } message: { Text(L10n.text("事件保持不变；使用此列表的小组件会提示列表不存在。")) }
         .onChange(of: shareEvent) { updateHistoryModal() }
-        .sheet(item: $shareEvent) { event in EventShareView(event: event, now: Date(), store: store) }
+        .sheet(item: $shareEvent) { event in EventShareView(event: event, now: Date(), store: store).appLanguage() }
         .onChange(of: pendingDelete) { updateHistoryModal() }
         .onChange(of: transferMessage) { updateHistoryModal() }
-        .sheet(isPresented: $store.isShowingBackups) { BackupsView(store: store) }
+        .sheet(isPresented: $store.isShowingBackups) { BackupsView(store: store).appLanguage() }
         .focusedSceneValue(\.eventActions, EventActions(hasSelection: store.isLoaded && !selectedEvents.isEmpty && !isPresentingModal, canEdit: store.isLoaded && selectedEvent?.isActive == true && !isPresentingModal, canCreate: store.isLoaded && !isPresentingModal, canTransfer: store.isLoaded && !isPresentingModal, canArchive: store.isLoaded && !selectedEvents.isEmpty && selectedEvents.allSatisfy { $0.isActive } && !isPresentingModal, canRestore: store.isLoaded && !selectedEvents.isEmpty && selectedEvents.allSatisfy { !$0.isActive } && !isPresentingModal, archive: archiveSelected, restore: restoreSelected, canDuplicate: store.isLoaded && selectedEvent != nil && selectedEvent?.lifecycle != .trashed && !isPresentingModal, duplicate: duplicateSelected, canShare: store.isLoaded && selectedEvent != nil && !isPresentingModal, copySummary: copySelectedSummary, share: shareSelected, canSearch: store.isLoaded && !isPresentingModal, create: createEvent, edit: editSelected, delete: deleteSelected, importEvents: beginImport, exportEvents: beginExport, searchEvents: focusSearch))
         .fileImporter(isPresented: $isImporting, allowedContentTypes: [.json]) { result in
             store.isTransferring = false
@@ -75,6 +108,11 @@ struct ContentView: View {
                 }
             } catch { store.errorMessage = L10n.format("导入失败，原数据已保留：%@", error.localizedDescription) }
         }
+        .onReceive(NotificationCenter.default.publisher(for: SettingsRouting.dataRequested)) { note in
+            guard store.canManageData, !isPresentingModal, let raw = note.object as? String,
+                  let action = SettingsDataAction(rawValue: raw) else { return }
+            switch action { case .importEvents: beginImport(); case .exportEvents: beginExport(); case .backups: store.isShowingBackups = true }
+        }
         .onChange(of: isImporting) { if !isImporting { store.isTransferring = false } }
         .alert("导入完成", isPresented: Binding(get: { transferMessage != nil }, set: { if !$0 { transferMessage = nil } })) {
             Button("好", role: .cancel) { transferMessage = nil }
@@ -86,20 +124,26 @@ struct ContentView: View {
             if let cursor = vimNavigation.cursor, !store.events.contains(where: { $0.id == cursor }) { vimNavigation = VimListNavigation() }
         }
         .onChange(of: store.editingEvent?.id) {
-            if let session = store.editingEvent, session.original == nil { filter = .all; search = "" }
+            if let session = store.editingEvent, session.original == nil { smartSelection = nil; filter = .all; search = "" }
         }
         .onChange(of: filter) { clearSelection() }
         .onChange(of: search) { clearSelection() }
+        .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)
+            .merge(with: NotificationCenter.default.publisher(for: .NSCalendarDayChanged),
+                   NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification))
+            .receive(on: RunLoop.main)) { _ in calendarReference = Date() }
+        .onReceive(NotificationCenter.default.publisher(for: .NSSystemClockDidChange)) { _ in calendarReference = Date() }
         .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
         .onOpenURL { url in
             guard !isPresentingModal else { return }
+            smartSelection = nil
             filter = .all
             search = ""
             store.open(url)
             selectedIDs = store.editingEvent.map { [$0.event.id] } ?? []
         }
         .sheet(item: $store.editingEvent) { session in
-            EventEditor(session: session, store: store)
+            EventEditor(session: session, store: store).appLanguage()
         }
         .alert(deletingPermanently ? L10n.text("永久删除所选事件？") : L10n.text("删除事件？"), isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
             Button("取消", role: .cancel) { pendingDelete = nil }
@@ -118,26 +162,29 @@ struct ContentView: View {
         // Only time-dependent content ticks. Rebuilding the native toolbar
         // every second dismisses an open menu before a user can select an item.
         NavigationSplitView {
-            TimelineView(.animation(minimumInterval: 1, paused: isPresentingModal)) { context in
-                SidebarView(selection: $filter, events: store.events, now: context.date)
+            TimelineView(EventTimelineSchedule(events: store.events, paused: isPresentingModal, referenceDate: calendarReference)) { context in
+                SidebarView(selection: $filter, events: store.events, now: context.date, smartSelection: $smartSelection, smartLists: smartStore.isLoaded ? smartStore.lists : [], canManage: store.isLoaded && smartStore.isLoaded && !isPresentingModal, canRecover: store.isLoaded && !isPresentingModal, createSmartList: { smartStore.begin() }, editSmartList: { smartStore.begin($0) }, copySmartList: { smartStore.begin($0, copy: true) }, deleteSmartList: { smartStore.pendingDelete = $0 }, showSmartBackups: { smartStore.isShowingBackups = true })
+                    .disabled(isPresentingModal)
             }
             .navigationSplitViewColumnWidth(min: 160, ideal: 180, max: 220)
         } detail: {
-            TimelineView(.animation(minimumInterval: 1, paused: isPresentingModal)) { context in
+            TimelineView(EventTimelineSchedule(events: store.events, paused: isPresentingModal, referenceDate: calendarReference,
+                smartList: smartStore.isLoaded ? smartStore.lists.first(where: { $0.id == smartSelection }) : nil)) { context in
                 detail(now: context.date)
             }
         }
-        .navigationTitle(filter?.label ?? EventFilter.all.label)
+        .navigationTitle(smartSelection == nil ? (filter?.label ?? EventFilter.all.label) : (smartStore.lists.first { $0.id == smartSelection }?.name ?? L10n.text("智能列表不存在")))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                NativeEventSortMenu(selection: $sortOrder, isEnabled: !isPresentingModal)
+                NativeEventSortMenu(selection: $sortOrder, isEnabled: !isPresentingModal && smartSelection == nil)
                     .frame(width: 44, height: 28)
             }
             ToolbarItem(placement: .primaryAction) {
                 if !selectedEvents.isEmpty && selectedEvents.allSatisfy({ !$0.isActive }) {
                     Button {
-                        let operation: EventBatchOperation = selectedEvents.allSatisfy { $0.lifecycle == .trashed } ? .recover : .unarchive
-                        _ = store.batch(operation, events: selectedEvents)
+                        let events = currentSelectedEvents
+                        let operation: EventBatchOperation = events.allSatisfy { $0.lifecycle == .trashed } ? .recover : .unarchive
+                        _ = store.batch(operation, events: events)
                     } label: { Label("恢复", systemImage: "arrow.uturn.backward") }
                     .disabled(!store.isLoaded || isPresentingModal)
                 } else {
@@ -179,7 +226,14 @@ struct ContentView: View {
                     Button("关闭") { if message == store.backupMessage { store.backupMessage = nil } else { store.reminderMessage = nil } }
                 }.font(.callout).padding(12)
             }
-            if !store.isLoaded {
+            if let error = smartStore.errorMessage {
+                HStack { Text(error).foregroundStyle(.red); Spacer(); Button(L10n.text("重试")) { smartStore.reload() } }.padding(12)
+            }
+            if smartSelection != nil && !smartStore.isLoaded {
+                ContentUnavailableView(L10n.text("无法读取智能列表"), systemImage: "externaldrive.badge.exclamationmark", description: Text(smartStore.errorMessage ?? ""))
+            } else if smartSelection != nil && !smartStore.lists.contains(where: { $0.id == smartSelection }) {
+                ContentUnavailableView(L10n.text("智能列表不存在"), systemImage: "line.3.horizontal.decrease.circle", description: Text(L10n.text("请在侧栏选择其他列表，或从智能列表备份恢复。")))
+            } else if !store.isLoaded {
                 ContentUnavailableView {
                     Label("无法读取事件", systemImage: "externaldrive.badge.exclamationmark")
                 } description: {
@@ -202,7 +256,7 @@ struct ContentView: View {
                 ScrollViewReader { proxy in
                     List(selection: $selectedIDs) {
                         ForEach(visible) { event in
-                            EventRow(event: event, now: now, isSelected: selectedIDs.contains(event.id))
+                            EventRow(event: event, now: now, isSelected: selectedIDs.contains(event.id), paused: isPresentingModal)
                                 .id(event.id)
                                 .tag(event.id)
                                 .accessibilityAction(named: Text("编辑事件")) { if !isPresentingModal && event.isActive { store.edit(event) } }
@@ -250,6 +304,7 @@ struct ContentView: View {
                     } primaryAction: { ids in
                         if ids.count == 1, let id = ids.first, let event = store.events.first(where: { $0.id == id }), event.isActive { store.edit(event) }
                     }
+                    .disabled(isPresentingModal)
                     .accessibilityLabel("事件列表")
                     .onDeleteCommand(perform: deleteSelected)
                     .onMoveCommand { direction in
@@ -269,10 +324,19 @@ struct ContentView: View {
                 }
             }
         }
+        .onChange(of: visible.map(\.id), initial: true) { _, ids in
+            vimNavigation.reconcile(ids: ids, selected: &selectedIDs)
+        }
     }
     private func visibleEvents(now: Date) -> [CountdownEvent] {
-        WidgetPolicy.sorted(events: store.events, now: now, order: sortOrder, includingInactive: true).filter {
-            (filter ?? .all).accepts($0, now: now) && (search.isEmpty || $0.title.localizedCaseInsensitiveContains(search))
+        let source: [CountdownEvent]
+        if let id = smartSelection {
+            guard smartStore.isLoaded else { return [] }
+            source = smartStore.lists.first(where: { $0.id == id })?.evaluate(events: store.events, now: now).events ?? []
+        } else {
+            source = WidgetPolicy.sorted(events: store.events, now: now, order: sortOrder, includingInactive: true).filter { (filter ?? .all).accepts($0, now: now) }
+        }
+        return source.filter { (search.isEmpty || $0.title.localizedCaseInsensitiveContains(search) || $0.tags.contains(where: { $0.localizedCaseInsensitiveContains(search) }))
         }
     }
     private func clearSelection() { keyboardSelection = nil; selectedIDs = []; vimNavigation = VimListNavigation(); vimSequence.reset() }
@@ -286,15 +350,15 @@ struct ContentView: View {
     }
     private func archiveSelected() {
         guard !isPresentingModal else { return }
-        _ = store.batch(.archive, events: selectedEvents)
+        _ = store.batch(.archive, events: currentSelectedEvents)
     }
     private func restoreSelected() {
         guard !isPresentingModal else { return }
-        let operation: EventBatchOperation = selectedEvents.allSatisfy { $0.lifecycle == .trashed } ? .recover : .unarchive
-        _ = store.batch(operation, events: selectedEvents)
+        let operation: EventBatchOperation = currentSelectedEvents.allSatisfy { $0.lifecycle == .trashed } ? .recover : .unarchive
+        _ = store.batch(operation, events: currentSelectedEvents)
     }
     private func duplicateSelected() {
-        guard !isPresentingModal, let event = selectedEvent else { return }
+        guard !isPresentingModal, let event = currentSelectedEvent else { return }
         store.duplicate(event)
     }
     private func handleListKey(_ key: KeyPress, visible: [CountdownEvent]) -> KeyPress.Result {
@@ -305,7 +369,7 @@ struct ContentView: View {
         if key.key == .return { editSelected(); return selectedEvent == nil ? .ignored : .handled }
         if key.key == .escape {
             vimSequence.reset(); vimNavigation.anchor = nil
-            if let cursor = vimNavigation.cursor { applyKeyboardSelection([cursor]) }
+            if let cursor = vimNavigation.cursor, visible.contains(where: { $0.id == cursor }) { applyKeyboardSelection([cursor]) } else { clearSelection() }
             return .handled
         }
         guard !key.modifiers.contains(.command), !key.modifiers.contains(.option) else { return .ignored }
@@ -357,9 +421,9 @@ struct ContentView: View {
         guard store.isLoaded, !isPresentingModal else { return }
         EventShareService.copySummary(event: event, now: Date())
     }
-    private func copySelectedSummary() { if let event = selectedEvent { copySummary(event) } }
+    private func copySelectedSummary() { if let event = currentSelectedEvent { copySummary(event) } }
     private func shareSelected() {
-        guard store.isLoaded, !isPresentingModal, let event = selectedEvent else { return }
+        guard store.isLoaded, !isPresentingModal, let event = currentSelectedEvent else { return }
         shareEvent = event
     }
     private func createEvent() {
@@ -399,11 +463,12 @@ struct ContentView: View {
     }
     private func editSelected() {
         guard store.isLoaded, !isPresentingModal else { return }
-        if let event = selectedEvent, event.isActive { store.edit(event) }
+        if let event = currentSelectedEvent, event.isActive { store.edit(event) }
     }
     private func deleteSelected() {
         guard store.isLoaded, !isPresentingModal else { return }
-        if !selectedEvents.isEmpty { pendingDelete = selectedEvents }
+        let events = currentSelectedEvents
+        if !events.isEmpty { pendingDelete = events }
     }
 }
 
@@ -442,6 +507,8 @@ private struct NativeEventSortMenu: NSViewRepresentable {
     func updateNSView(_ button: NSPopUpButton, context: Context) {
         context.coordinator.selection = $selection
         button.isEnabled = isEnabled
+        button.setAccessibilityLabel(L10n.text("排序"))
+        button.toolTip = L10n.text("事件排序")
         if !context.coordinator.isTracking, let menu = button.menu {
             context.coordinator.refreshChecks(menu)
         }
@@ -453,6 +520,8 @@ private struct NativeEventSortMenu: NSViewRepresentable {
         init(selection: Binding<EventSortOrder>) { self.selection = selection }
         func refreshChecks(_ menu: NSMenu) {
             for item in menu.items {
+                let title = (item.representedObject as? String).flatMap(EventSortOrder.init(rawValue:))?.label ?? L10n.text("排序")
+                if item.title != title { item.title = title }
                 item.state = (item.representedObject as? String) == selection.wrappedValue.rawValue ? .on : .off
             }
         }
