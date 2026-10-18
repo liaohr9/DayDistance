@@ -5,6 +5,20 @@ import Observation
 #endif
 
 final class LanguagePreferenceTests: XCTestCase {
+    func testExplicitLanguageFindsActualLowercaseResourceDirectory() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("bundle")
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("zh-hans.lproj"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("en.lproj"), withIntermediateDirectories: true)
+        try PropertyListSerialization.data(fromPropertyList: ["CFBundleIdentifier": "language-resource-probe", "CFBundleDevelopmentRegion": "en"], format: .xml, options: 0).write(to: root.appendingPathComponent("Info.plist"))
+        try PropertyListSerialization.data(fromPropertyList: ["今天": "今天"], format: .xml, options: 0).write(to: root.appendingPathComponent("zh-hans.lproj/Localizable.strings"))
+        try PropertyListSerialization.data(fromPropertyList: ["今天": "Today"], format: .xml, options: 0).write(to: root.appendingPathComponent("en.lproj/Localizable.strings"))
+        let source = try XCTUnwrap(Bundle(url: root))
+        let chinese = try XCTUnwrap(L10n.resourceBundle(for: .simplifiedChinese, in: source))
+        XCTAssertEqual(chinese.bundleURL.lastPathComponent, "zh-hans.lproj")
+        XCTAssertEqual(L10n.text("今天", bundle: chinese), "今天")
+    }
+
     func testApplyPublishesAndChangesLookupWithoutRelaunch() throws {
         let original = L10n.currentLanguage
         defer { L10n.useLanguage(original) }

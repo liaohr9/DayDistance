@@ -78,8 +78,7 @@ enum L10n {
         return Locale(components: components)
     }
     static func useLanguage(_ language: AppLanguage) {
-        let localized = bundle.url(forResource: language.rawValue, withExtension: "lproj")
-            .flatMap { Bundle(url: $0) }
+        let localized = resourceBundle(for: language, in: bundle)
         state.lock.lock()
         let changed = state.language != language || state.localizedBundle == nil
         state.language = language
@@ -87,6 +86,16 @@ enum L10n {
         if changed { state.revision += 1 }
         state.lock.unlock()
         if changed { NotificationCenter.default.post(name: languageDidChange, object: nil) }
+    }
+    /// Bundle resource lookup may filter by preferred language or normalize lproj
+    /// casing differently across SDKs. Resolve the actual shipped directory.
+    static func resourceBundle(for language: AppLanguage, in source: Bundle) -> Bundle? {
+        guard let resources = source.resourceURL,
+              let entries = try? FileManager.default.contentsOfDirectory(at: resources, includingPropertiesForKeys: nil),
+              let directory = entries.first(where: {
+                  $0.lastPathComponent.caseInsensitiveCompare(language.rawValue + ".lproj") == .orderedSame
+              }) else { return nil }
+        return Bundle(url: directory)
     }
     static var bundle: Bundle {
         #if SWIFT_PACKAGE
