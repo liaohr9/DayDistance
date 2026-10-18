@@ -1,19 +1,19 @@
-<?xml version="1.0" standalone="yes"?><!-- sparkle-sign-warning:
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><!-- sparkle-sign-warning:
 IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
 --><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
         <title>日距</title>
         <item>
-            <title>1.13.2</title>
-            <pubDate>Mon, 19 Oct 2026 00:38:46 +0800</pubDate>
-            <sparkle:version>41</sparkle:version>
-            <sparkle:shortVersionString>1.13.2</sparkle:shortVersionString>
+            <title>1.14.0</title>
+            <pubDate>Mon, 19 Oct 2026 01:26:27 +0800</pubDate>
+            <sparkle:version>43</sparkle:version>
+            <sparkle:shortVersionString>1.14.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/liaohr9/DayDistance/releases/download/v1.13.2-preview.1/DayDistance-1.13.2-macOS-arm64-preview.zip" length="8971987" type="application/octet-stream" sparkle:edSignature="s1az19alYmMIxcznkI0gDz8OuIZdsATCV0GswwM521Q+aXHqwLWihfMiN2b2dnTlVYPWj0qg/lscDr6fIcEMDQ=="></enclosure>
-        </item>
+            <enclosure url="https://github.com/liaohr9/DayDistance/releases/download/v1.14.0-preview.1/DayDistance-1.14.0-macOS-arm64-preview.zip" length="9030127" type="application/octet-stream" sparkle:edSignature="UOKwScuLSYnXgTO5uRm/o7tcN8yXPNitYDHLM8Xi+Qu19chUPCg9hodrVr+p87nGqUsw7XxlN+UWdi+AdMCRAQ=="></enclosure>
+        <description>&lt;h2&gt;1.14.0&lt;/h2&gt;&lt;h3&gt;New&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Add Release Notes in Settings to read current changes and previous public releases offline.&lt;/li&gt;&lt;li&gt;Show release notes in update prompts so you can review new features and fixes before installing.&lt;/li&gt;&lt;/ul&gt;&lt;h3&gt;Improvements&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Request widget registration automatically after installation, an update, or replacing the app.&lt;/li&gt;&lt;/ul&gt;&lt;h3&gt;Fixes&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Add Refresh &amp;amp; Repair Widgets in Settings to retry registration and content refresh without Terminal.&lt;/li&gt;&lt;li&gt;Preserve events and widget configurations, with distinct messages for submitted requests, incomplete installations, and timeouts.&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Developer preview. Not notarized by Apple.&lt;/p&gt;</description><description xml:lang="en">&lt;h2&gt;1.14.0&lt;/h2&gt;&lt;h3&gt;New&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Add Release Notes in Settings to read current changes and previous public releases offline.&lt;/li&gt;&lt;li&gt;Show release notes in update prompts so you can review new features and fixes before installing.&lt;/li&gt;&lt;/ul&gt;&lt;h3&gt;Improvements&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Request widget registration automatically after installation, an update, or replacing the app.&lt;/li&gt;&lt;/ul&gt;&lt;h3&gt;Fixes&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Add Refresh &amp;amp; Repair Widgets in Settings to retry registration and content refresh without Terminal.&lt;/li&gt;&lt;li&gt;Preserve events and widget configurations, with distinct messages for submitted requests, incomplete installations, and timeouts.&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Developer preview. Not notarized by Apple.&lt;/p&gt;</description><description xml:lang="zh-Hans">&lt;h2&gt;1.14.0&lt;/h2&gt;&lt;h3&gt;新增&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;新增“更新日志”，可在设置中离线查看本次变化和历史公开版本。&lt;/li&gt;&lt;li&gt;更新提示展示本次更新说明，安装前可了解新增功能和修复内容。&lt;/li&gt;&lt;/ul&gt;&lt;h3&gt;改进&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;首次打开、更新或替换安装包后，自动请求登记日距小组件。&lt;/li&gt;&lt;/ul&gt;&lt;h3&gt;修复&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;设置 → 小组件新增“刷新并修复小组件”，可重试系统登记和内容刷新，无需终端操作。&lt;/li&gt;&lt;li&gt;保留已有事件和组件配置；修复结果清楚区分请求已提交、安装不完整及系统未响应。&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;开发预览版，尚未经过 Apple 公证。&lt;/p&gt;</description><sparkle:fullReleaseNotesLink>https://github.com/liaohr9/DayDistance/releases</sparkle:fullReleaseNotesLink></item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: 1Or+O9ujPeoViZOrn6OWVRZn4fpq/18qS3SdHd72K7YJJMJZvNv5WjALBHj2Tc2/J8ocKtnm4qLSFEQ2BTH+AA==
-length: 1158
+edSignature: XeH/c1xOYV02C4NLflNQtGyHKXoiYpBg+SE1ji7Y9FmnFZf/Ih4cQfTjLgxLpL8d4+byxHGmPvJAlDc9SrOADg==
+length: 3943
 -->
