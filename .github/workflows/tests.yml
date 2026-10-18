@@ -19,5 +19,9 @@ jobs:
         run: zsh Tests/Fixtures/Reminders/test.sh
       - name: Settings routing and modal guards
         run: python3 script/test_settings.py
+      - name: Release catalog and update descriptions
+        run: python3 script/test_release_notes.py
+      - name: Widget registration lifecycle
+        run: python3 script/test_widget_maintenance.py
       - name: Update settings and editing protection
         run: python3 script/test_updates.py

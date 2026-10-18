@@ -57,6 +57,7 @@ struct DayDistanceApp: App {
     @State private var reminders = EventReminderService(repositoryProvider: { try SharedContainer.repository() })
     @State private var backgroundReminders = BackgroundReminderController()
     @State private var updates = UpdateController.production()
+    @State private var widgetMaintenance = WidgetMaintenanceController.production()
     @AppStorage("showMenuBar") private var showMenuBar = false
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openWindow) private var openWindow
@@ -86,6 +87,7 @@ struct DayDistanceApp: App {
                     await backgroundReminders.refreshAfterUpdate()
                     publishReminderMessage()
                 }
+                .task { await widgetMaintenance.prepareAfterLaunch() }
                 .onChange(of: reminders.statusMessage) { publishReminderMessage() }
                 .onChange(of: backgroundReminders.canRenewReminders) { publishReminderMessage() }
                  .onChange(of: store.events) { Task { await syncReminders() } }
@@ -105,7 +107,7 @@ struct DayDistanceApp: App {
         }
         .defaultSize(width: 800, height: 520)
         .commands { DayDistanceCommands(store: store, updates: updates) }
-        Settings { PreferencesView(dockIcons: applicationDelegate.dockIcons, reminders: reminders, background: backgroundReminders, store: store, updates: updates).appLanguage() }
+        Settings { PreferencesView(dockIcons: applicationDelegate.dockIcons, reminders: reminders, background: backgroundReminders, store: store, updates: updates, widgetMaintenance: widgetMaintenance).appLanguage() }
             .windowToolbarStyle(.unifiedCompact)
             .commandsRemoved()
         MenuBarExtra(L10n.text("日距"), systemImage: "hourglass", isInserted: $showMenuBar) {

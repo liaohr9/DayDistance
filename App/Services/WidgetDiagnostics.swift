@@ -5,7 +5,7 @@ import UserNotifications
 /// A small allowlist of status fields. Never add an event, URL, or localized error here.
 struct DiagnosticReport: Encodable, Equatable {
     enum DataSourceState: String, Codable { case readable, notCreated, unreadable }
-    let reportVersion = 1
+    let reportVersion = 2
     let applicationVersion: String
     let buildVersion: String
     let storageMode: String
@@ -15,6 +15,7 @@ struct DiagnosticReport: Encodable, Equatable {
     let errorCategory: String?
     let notificationAuthorization: String
     let widgetExtensionEmbedded: Bool
+    let widgetRegistrationRequest: String
     let reduceMotion: Bool
     let increaseContrast: Bool
     let reduceTransparency: Bool
@@ -62,13 +63,16 @@ struct WidgetDiagnostics {
     private let repository: () throws -> EventRepository
     private let notificationAuthorization: () async -> String
     private let metadata: DiagnosticMetadata
+    private let registrationOutcome: @MainActor () -> WidgetMaintenanceOutcome?
 
     init(repository: @escaping () throws -> EventRepository = { try SharedContainer.repository() },
          notificationAuthorization: @escaping () async -> String = { await Self.currentAuthorization() },
-         metadata: DiagnosticMetadata? = nil) {
+         metadata: DiagnosticMetadata? = nil,
+         registrationOutcome: @escaping @MainActor () -> WidgetMaintenanceOutcome? = { .persisted() }) {
         self.repository = repository
         self.notificationAuthorization = notificationAuthorization
         self.metadata = metadata ?? .current()
+        self.registrationOutcome = registrationOutcome
     }
 
     func check() async -> DiagnosticReport {
@@ -90,6 +94,7 @@ struct WidgetDiagnostics {
                                 eventCount: count, dataSourceState: state, errorCategory: category,
                                 notificationAuthorization: await notificationAuthorization(),
                                 widgetExtensionEmbedded: metadata.widgetExtensionEmbedded,
+                                widgetRegistrationRequest: registrationOutcome()?.rawValue ?? "notRequested",
                                 reduceMotion: metadata.reduceMotion, increaseContrast: metadata.increaseContrast,
                                 reduceTransparency: metadata.reduceTransparency)
     }

@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "releases": [
+    {
+      "version": "1.14.0",
+      "build": 43,
+      "date": "2026-10-19",
+      "sections": [
+        {
+          "kind": "added",
+          "items": [
+            {
+              "zh-Hans": "新增“更新日志”，可在设置中离线查看本次变化和历史公开版本。",
+              "en": "Add Release Notes in Settings to read current changes and previous public releases offline."
+            },
+            {
+              "zh-Hans": "更新提示展示本次更新说明，安装前可了解新增功能和修复内容。",
+              "en": "Show release notes in update prompts so you can review new features and fixes before installing."
+            }
+          ]
+        },
+        {
+          "kind": "improved",
+          "items": [
+            {
+              "zh-Hans": "首次打开、更新或替换安装包后，自动请求登记日距小组件。",
+              "en": "Request widget registration automatically after installation, an update, or replacing the app."
+            }
+          ]
+        },
+        {
+          "kind": "fixed",
+          "items": [
+            {
+              "zh-Hans": "设置 → 小组件新增“刷新并修复小组件”，可重试系统登记和内容刷新，无需终端操作。",
+              "en": "Add Refresh & Repair Widgets in Settings to retry registration and content refresh without Terminal."
+            },
+            {
+              "zh-Hans": "保留已有事件和组件配置；修复结果清楚区分请求已提交、安装不完整及系统未响应。",
+              "en": "Preserve events and widget configurations, with distinct messages for submitted requests, incomplete installations, and timeouts."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.13.2",
+      "build": 41,
+      "date": "2026-10-18",
+      "sections": [
+        {
+          "kind": "fixed",
+          "items": [
+            {
+              "zh-Hans": "大号组件不足一页时从顶部依次排列，底部留白；最后一页和翻页按钮同样保持稳定布局。",
+              "en": "Keep partially filled large-widget pages aligned at the top, including the last page, with paging controls at the bottom."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.13.1",
+      "build": 40,
+      "date": "2026-10-18",
+      "sections": [
+        {
+          "kind": "fixed",
+          "items": [
+            {
+              "zh-Hans": "改进中英文资源目录的识别，修复部分构建环境中的语言回退。",
+              "en": "Resolve localized resource directories consistently, fixing language fallback in some build environments."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.13.0",
+      "build": 39,
+      "date": "2026-10-18",
+      "sections": [
+        {
+          "kind": "added",
+          "items": [
+            {
+              "zh-Hans": "加入应用内更新，可自动检查 GitHub 新版，也可手动检查；确认后下载、验签、安装并重新打开。",
+              "en": "Add in-app updates with optional automatic checks, manual checks, and confirmed download, verification, installation, and relaunch."
+            }
+          ]
+        },
+        {
+          "kind": "improved",
+          "items": [
+            {
+              "zh-Hans": "更新保护未完成的编辑和文件操作；应用及更新组件仅保留 Apple Silicon 架构。",
+              "en": "Protect active edits and file operations during updates; keep the app and updater components Apple Silicon only."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.8.1",
+      "build": 24,
+      "date": "2026-10-10",
+      "sections": [
+        {
+          "kind": "added",
+          "items": [
+            {
+              "zh-Hans": "首次公开开发预览：倒计日与正计日、桌面组件、归档回收站、导入导出、每日和周年提醒。",
+              "en": "First public developer preview: countdowns, elapsed days, desktop widgets, archive and trash, import/export, and daily and anniversary reminders."
+            }
+          ]
+        },
+        {
+          "kind": "fixed",
+          "items": [
+            {
+              "zh-Hans": "系统允许通知后，返回应用或打开设置会刷新权限状态并补排提醒。",
+              "en": "Refresh notification permission and reschedule reminders when returning to the app or opening Settings after permission is allowed."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

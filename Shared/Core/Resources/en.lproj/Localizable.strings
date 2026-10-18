@@ -651,3 +651,30 @@
 "完成当前编辑后将安装更新并重新打开日距。" = "The update will install and DayDistance will reopen after you finish editing.";
 
 "更新服务暂不可用，请稍后重试。" = "The update service is unavailable. Please try again later.";
+
+/* Widget registration and repair */
+"刷新并修复小组件" = "Refresh & Repair Widgets";
+"正在请求重新登记…" = "Requesting widget registration…";
+"首次打开或更新后会自动请求登记。修复仅针对日距，不会删除事件或已有小组件配置。" = "Registration is requested automatically after installation or an update. Repair only targets DayDistance and preserves events and existing widget configurations.";
+"已请求重新登记并刷新。请关闭后重新打开“编辑小组件”，搜索“日距”或“DayDistance”。" = "Registration and refresh requested. Close and reopen Edit Widgets, then search for DayDistance.";
+"请先将日距移到“应用程序”，再打开应用进行修复。" = "Move DayDistance to Applications, then open the app again to repair widgets.";
+"安装包内的小组件不完整，请重新下载安装包。" = "The widget extension is incomplete. Download the app again.";
+"小组件签名无法验证，请重新下载应用；不要自行修改或重新签名安装包。" = "The widget signature could not be verified. Download the app again; do not modify or re-sign it.";
+"系统未能完成登记请求。请重试；若仍失败，请导出诊断报告。" = "The registration request failed. Try again, or export a diagnostic report if the problem continues.";
+"系统暂未响应登记请求，请稍后重试。" = "The registration request timed out. Try again later.";
+"小组件库中找不到日距" = "DayDistance is missing from the widget gallery";
+"确认应用已移到“应用程序”并打开过一次，然后点击“刷新并修复小组件”。完成后关闭并重新打开系统组件页，搜索“日距”或“DayDistance”。如果仍找不到，请导出诊断报告，并附上 macOS 版本。" = "Move the app to Applications and open it once, then click Refresh & Repair Widgets. Close and reopen the widget gallery and search for DayDistance. If it is still missing, export a diagnostic report and include your macOS version.";
+
+"更新日志" = "Release Notes";
+
+"更新日志…" = "Release Notes…";
+
+"新增" = "New";
+
+"改进" = "Improvements";
+
+"修复" = "Fixes";
+
+"开发预览版，尚未经过 Apple 公证。" = "Developer preview. Not notarized by Apple.";
+
+"无法读取更新日志。" = "Release notes could not be loaded.";

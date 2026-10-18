@@ -32,6 +32,8 @@ if [[ "$MODE" != --install-only ]]; then
  python3 "$ROOT_DIR/script/test_smart_list_store.py" > "$BUILD_DIR/smart-store-tests.log" 2>&1 || { cat "$BUILD_DIR/smart-store-tests.log"; exit 1; }
  python3 "$ROOT_DIR/script/test_undo.py" > "$BUILD_DIR/undo-tests.log" 2>&1 || { cat "$BUILD_DIR/undo-tests.log"; exit 1; }
  zsh "$ROOT_DIR/script/test_background_reminders.sh" > "$BUILD_DIR/background-reminder-tests.log" 2>&1 || { cat "$BUILD_DIR/background-reminder-tests.log"; exit 1; }
+ python3 "$ROOT_DIR/script/test_release_notes.py" > "$BUILD_DIR/release-notes-tests.log" 2>&1 || { cat "$BUILD_DIR/release-notes-tests.log"; exit 1; }
+ python3 "$ROOT_DIR/script/test_widget_maintenance.py" > "$BUILD_DIR/widget-maintenance-tests.log" 2>&1 || { cat "$BUILD_DIR/widget-maintenance-tests.log"; exit 1; }
  python3 "$ROOT_DIR/script/test_updates.py" > "$BUILD_DIR/update-tests.log" 2>&1 || { cat "$BUILD_DIR/update-tests.log"; exit 1; }
  python3 "$ROOT_DIR/script/test_settings.py" > "$BUILD_DIR/settings-tests.log" 2>&1 || { cat "$BUILD_DIR/settings-tests.log"; exit 1; }
  zsh "$ROOT_DIR/script/test_batch.sh" > "$BUILD_DIR/batch-tests.log" 2>&1 || { cat "$BUILD_DIR/batch-tests.log"; exit 1; }

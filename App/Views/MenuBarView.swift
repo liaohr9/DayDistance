@@ -78,6 +78,7 @@ struct PreferencesView: View {
     @Bindable var background: BackgroundReminderController
     @Bindable var store: EventStore
     @Bindable var updates: UpdateController = .production()
+    @Bindable var widgetMaintenance: WidgetMaintenanceController = .production()
     var applyLanguage: @MainActor (AppLanguage) throws -> Void = { language in
         try language.apply(file: SharedContainer.languageFileURL())
         WidgetCenter.shared.reloadAllTimelines()
@@ -86,6 +87,7 @@ struct PreferencesView: View {
     @AppStorage("vimKeysEnabled") private var vimKeysEnabled = true
     @AppStorage("showMenuBar") private var showMenuBar = false
     @State private var showReminderDetails = false
+    @State private var showReleaseHistory = false
     @State private var backups: [LocalBackup] = []
     @State private var backupError: String?
     @State private var language = AppLanguage.selection()
@@ -106,7 +108,7 @@ struct PreferencesView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 22) {
                             WidgetSetupGuide()
-                            WidgetCheckPane(store: store)
+                            WidgetCheckPane(store: store, maintenance: widgetMaintenance)
                         }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
                     }
                 } else {
@@ -127,6 +129,7 @@ struct PreferencesView: View {
         .onReceive(NotificationCenter.default.publisher(for: SettingsRouting.sectionRequested)) { note in
             if let raw = note.object as? String, SettingsSection(rawValue: raw) != nil { sectionRaw = raw }
         }
+        .sheet(isPresented: $showReleaseHistory) { ReleaseHistoryView().appLanguage() }
         .task(id: section) {
             if section == .data {
                 refreshBackups()
@@ -186,6 +189,7 @@ struct PreferencesView: View {
             Text("应用打开时，每天检查 GitHub 上的新版本。发现更新后先询问，确认后下载、校验并安装。")
                 .font(.caption).foregroundStyle(.secondary)
             Button("检查更新…") { updates.checkForUpdates() }.disabled(!store.canManageData || !updates.canCheck)
+            Button("更新日志…") { showReleaseHistory = true }
             if let checked = updates.lastChecked {
                 LabeledContent("上次检查", value: checked.formatted(date: .abbreviated, time: .shortened))
             }

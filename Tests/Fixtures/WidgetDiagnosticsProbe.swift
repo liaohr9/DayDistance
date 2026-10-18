@@ -13,10 +13,11 @@ struct WidgetDiagnosticsProbe {
         try FileManager.default.removeItem(atPath: source.path + ".lock")
         let original = try Data(contentsOf: source)
         let metadata = DiagnosticMetadata(applicationVersion: "1.6", buildVersion: "42", storageMode: "local", systemVersion: "test-system", widgetExtensionEmbedded: true, reduceMotion: false, increaseContrast: false, reduceTransparency: false)
-        let service = WidgetDiagnostics(repository: { repository }, notificationAuthorization: { "denied" }, metadata: metadata)
+        let service = WidgetDiagnostics(repository: { repository }, notificationAuthorization: { "denied" }, metadata: metadata, registrationOutcome: { .requested })
         let report = await service.check()
         require(report.eventCount == 1 && report.dataSourceState == .readable, "reads current validated event count")
         require(report.notificationAuthorization == "denied", "reports injected authorization without requesting permission")
+        require(report.widgetRegistrationRequest == "requested", "registration request is reported separately from embedded/rendered state")
         require(try Data(contentsOf: source) == original, "diagnostics preserve source bytes")
         require(!FileManager.default.fileExists(atPath: source.path + ".lock"), "diagnostics create no write lock")
         let exported = try report.jsonData()
@@ -25,7 +26,7 @@ struct WidgetDiagnosticsProbe {
             require(!text.contains(forbidden), "export excludes event content and full user paths")
         }
         let object = try JSONSerialization.jsonObject(with: exported) as! [String: Any]
-        require(Set(object.keys) == Set(["reportVersion", "applicationVersion", "buildVersion", "storageMode", "systemVersion", "eventCount", "dataSourceState", "notificationAuthorization", "widgetExtensionEmbedded", "reduceMotion", "increaseContrast", "reduceTransparency"]), "export has explicit non-content field allowlist")
+        require(Set(object.keys) == Set(["reportVersion", "applicationVersion", "buildVersion", "storageMode", "systemVersion", "eventCount", "dataSourceState", "notificationAuthorization", "widgetExtensionEmbedded", "widgetRegistrationRequest", "reduceMotion", "increaseContrast", "reduceTransparency"]), "export has explicit non-content field allowlist")
         let output = directory.appendingPathComponent("diagnostics.json")
         try service.export(report, to: output)
         require(try Data(contentsOf: output) == exported, "writes only diagnostic report")

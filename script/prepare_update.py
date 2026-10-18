@@ -1,9 +1,39 @@
 #!/usr/bin/env python3
 """Prepare a signed GitHub update ZIP and appcast locally; never uploads or exports keys."""
-import argparse,base64,hashlib,json,plistlib,re,shutil,subprocess,tempfile,xml.etree.ElementTree as ET
+import argparse,base64,hashlib,html,json,plistlib,re,shutil,subprocess,tempfile,xml.etree.ElementTree as ET
 from pathlib import Path
 ACCOUNT='local.daydistance.mac.updates'
 PREFIX='https://github.com/liaohr9/DayDistance/releases/download/'
+
+def release_catalog():
+    document=json.loads((Path(__file__).resolve().parent.parent/'Shared/Core/Resources/release-history.json').read_text())
+    entries=document['releases']
+    if document['schemaVersion']!=1 or not entries or len({e['version'] for e in entries})!=len(entries):
+        raise ValueError('Invalid release history')
+    if [e['build'] for e in entries]!=sorted({e['build'] for e in entries},reverse=True):
+        raise ValueError('Release history must have unique descending builds')
+    for entry in entries:
+        for section in entry['sections']:
+            if section['kind'] not in {'added','improved','fixed'} or not section['items']: raise ValueError('Invalid release section')
+            for item in section['items']:
+                if any(not item[lang].strip() for lang in ['en','zh-Hans']): raise ValueError('Missing translation')
+    return entries
+
+def release_notes(version, build):
+    entry=next((e for e in release_catalog() if e['version']==version and str(e['build'])==str(build)),None)
+    if entry is None: raise ValueError('Release notes must match the packaged version and build')
+    labels={'en':{'added':'New','improved':'Improvements','fixed':'Fixes'},'zh-Hans':{'added':'新增','improved':'改进','fixed':'修复'}}
+    return {lang:'<h2>'+html.escape(version)+'</h2>'+''.join('<h3>'+labels[lang][s['kind']]+'</h3><ul>'+''.join('<li>'+html.escape(i[lang])+'</li>' for i in s['items'])+'</ul>' for s in entry['sections'])+'<p>'+('Developer preview. Not notarized by Apple.' if lang=='en' else '开发预览版，尚未经过 Apple 公证。')+'</p>' for lang in labels}
+
+def embed_notes(feed, notes):
+    ET.register_namespace('sparkle','http://www.andymatuschak.org/xml-namespaces/sparkle')
+    tree=ET.parse(feed);item=tree.find('./channel/item')
+    if item is None: raise ValueError('Missing current release')
+    for old in item.findall('description'): item.remove(old)
+    ET.SubElement(item,'description').text=notes['en']
+    for lang,body in notes.items(): ET.SubElement(item,'description',{'{http://www.w3.org/XML/1998/namespace}lang':lang}).text=body
+    ET.SubElement(item,'{http://www.andymatuschak.org/xml-namespaces/sparkle}fullReleaseNotesLink').text='https://github.com/liaohr9/DayDistance/releases'
+    tree.write(feed,encoding='utf-8',xml_declaration=True)
 
 def validate_feed(feed: Path, archive: Path, tag: str, info: dict):
     ns={'s':'http://www.andymatuschak.org/xml-namespaces/sparkle'}
@@ -31,6 +61,7 @@ def main():
         import prepare_release
         result=prepare_release.checked(app,args.team or '',args.group or '', 'distribution')
         if not result['distributable']:raise ValueError('Developer ID, notarization and shared storage validation required')
+    notes=release_notes(info['CFBundleShortVersionString'],info['CFBundleVersion'])
     output=args.output.resolve()
     if output.is_relative_to(app):raise ValueError('Output must be separate from the source application')
     if output.exists():raise FileExistsError('Use a new output directory; never overwrite a release')
@@ -46,7 +77,10 @@ def main():
         staged=Path(tmp)/'日距.app';subprocess.run(['ditto',str(app),str(staged)],check=True)
         subprocess.run(['ditto','-c','-k','--sequesterRsrc','--keepParent',str(staged),str(archive)],check=True)
     subprocess.run([str(tools/'generate_appcast'),'--account',ACCOUNT,'--maximum-deltas','0','--download-url-prefix',PREFIX+args.tag+'/',str(output)],check=True)
-    feed=output/'appcast.xml';signature=validate_feed(feed,archive,args.tag,info)
+    feed=output/'appcast.xml'
+    embed_notes(feed,notes)
+    subprocess.run([str(tools/'sign_update'),'--account',ACCOUNT,str(feed)],check=True)
+    signature=validate_feed(feed,archive,args.tag,info)
     subprocess.run([str(tools/'sign_update'),'--account',ACCOUNT,'--verify',str(archive),signature],check=True)
     subprocess.run([str(tools/'sign_update'),'--account',ACCOUNT,'--verify',str(feed)],check=True)
     manifest={'version':info['CFBundleShortVersionString'],'build':info['CFBundleVersion'],'tag':args.tag,'preview':args.preview,'notarized':not args.preview,'archive':archive.name,'bytes':archive.stat().st_size,'sha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'updateSignatureVerified':True,'feedSignatureVerified':True}

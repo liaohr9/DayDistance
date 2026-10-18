@@ -130,11 +130,11 @@ struct HelpView: View {
 
 struct WidgetCheckPane: View {
     let store: EventStore
+    @Bindable var maintenance: WidgetMaintenanceController = .production()
     @State private var report: DiagnosticReport?
     @State private var isChecking = false
     @State private var showDetails = false
     @State private var showTroubleshooting = false
-    @State private var refreshMessage: String?
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
                 if let report {
@@ -153,19 +153,25 @@ struct WidgetCheckPane: View {
                     Text("正在读取状态…").foregroundStyle(.secondary)
                 }
                 HStack {
-                    Button("重新检查") { Task { await check() } }
-                        .disabled(isChecking || store.isTransferring)
-                    Button("请求刷新") {
-                        WidgetCenter.shared.reloadTimelines(ofKind: "DayDistanceWidget")
-                        refreshMessage = L10n.text("已向系统请求刷新；实际更新时间由 macOS 决定。")
+                    Button("刷新并修复小组件") {
+                        Task { await maintenance.repair(); await check() }
                     }
-                    .disabled(store.isTransferring)
-                    if isChecking { ProgressView().controlSize(.small) }
+                    .disabled(isChecking || maintenance.isWorking || store.isTransferring)
+                    Button("重新检查") { Task { await check() } }
+                        .disabled(isChecking || maintenance.isWorking || store.isTransferring)
+                    if isChecking || maintenance.isWorking { ProgressView().controlSize(.small) }
                 }
-                if let refreshMessage { Text(refreshMessage).font(.callout).foregroundStyle(.secondary) }
+                if maintenance.isWorking {
+                    Text("正在请求重新登记…").font(.callout).foregroundStyle(.secondary)
+                } else if let outcome = maintenance.outcome {
+                    Text(outcome.message).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+                Text("首次打开或更新后会自动请求登记。修复仅针对日距，不会删除事件或已有小组件配置。")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 DisclosureGroup("排查说明", isExpanded: $showTroubleshooting) {
                     VStack(alignment: .leading, spacing: 14) {
                         helpSection("检查结果的含义", "数据源可读表示应用能读取组件使用的事件文件。扩展已包含表示安装包内有小组件。以上结果不能证明桌面组件已经正常显示；请在桌面核对实际内容。")
+                        helpSection("小组件库中找不到日距", "确认应用已移到“应用程序”并打开过一次，然后点击“刷新并修复小组件”。完成后关闭并重新打开系统组件页，搜索“日距”或“DayDistance”。如果仍找不到，请导出诊断报告，并附上 macOS 版本。")
                         helpSection("组件内容没有更新", "先重新检查并请求刷新，再在桌面确认组件选择的事件。指定事件已删除时可重新选择；自动选择会随事件和日期变化。若仍有问题，可导出诊断报告，并自行附上问题描述或截图。")
                     }.padding(.top, 8)
                 }

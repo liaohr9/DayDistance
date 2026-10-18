@@ -1,3 +1,14 @@
+## 1.14.0 — widget recovery and release history
+
+- Add offline Chinese/English Release Notes under Settings → Software Update, covering current changes and previous public versions.
+- Generate localized update-prompt descriptions from the same catalog and sign the entire feed after embedding them.
+
+
+- Request registration for the bundled widget once after installing, replacing or updating the app.
+- Add Settings → Widgets → Refresh & Repair Widgets, with localized results and a bounded background operation.
+- Validate the bundled extension before registration; preserve events and widget configurations.
+- Keep registration-request status separate from widget rendering in diagnostics. No system database resets or global widget-process restarts.
+
 ## 1.13.1 — language resource compatibility
 
 - Resolve the actual en/zh-Hans resource directories regardless of preferred localization or directory casing.
