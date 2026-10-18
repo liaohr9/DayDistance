@@ -21,6 +21,17 @@ private struct EventRowContent: View {
         let value = DayCounter.snapshot(event: event, now: now)
         let dateLabel = event.dateLabel(now: now)
         let summary = EventDisplayFormatter.summary(event: event, now: now)
+        let tagLabel = event.tags.joined(separator: ", ")
+        let subtitle: String = tagLabel.isEmpty ? dateLabel : "\(dateLabel) · \(tagLabel)"
+        let titleAndTags: String = tagLabel.isEmpty ? event.title : "\(event.title) · \(tagLabel)"
+        let tooltip = titleAndTags + L10n.text(" · 双击编辑")
+        let lifecycleLabel: String = switch event.lifecycle {
+        case .active: ""
+        case .archived: L10n.text("已归档")
+        case .trashed: L10n.text("在回收站中")
+        }
+        let spokenLabel = [event.title, event.isPinned ? L10n.text("已置顶") : "", lifecycleLabel, tagLabel, dateLabel, summary]
+            .filter { !$0.isEmpty }.joined(separator: ", ")
         HStack(spacing: 12) {
             Image(systemName: event.symbol)
                 .accessibilityHidden(true)
@@ -31,7 +42,7 @@ private struct EventRowContent: View {
                     Text(event.title).font(.body.weight(.medium)).lineLimit(1)
                     if event.isPinned { Image(systemName: "pin.fill").font(.caption2).foregroundStyle(.secondary).accessibilityHidden(true) }
                 }
-                Text(dateLabel + (event.tags.isEmpty ? "" : " · " + event.tags.joined(separator: ", ")))
+                Text(verbatim: subtitle)
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 16)
@@ -45,10 +56,10 @@ private struct EventRowContent: View {
         }
         .frame(height: 52)
         .contentShape(Rectangle())
-        .help(event.title + (event.tags.isEmpty ? "" : " · " + event.tags.joined(separator: ", ")) + L10n.text(" · 双击编辑"))
+        .help(tooltip)
         .accessibilityElement(children: .ignore)
         // The accessibility label excludes the clock, so second ticks do not alter speech.
-        .accessibilityLabel([event.title, event.isPinned ? L10n.text("已置顶") : "", event.lifecycle == .archived ? L10n.text("已归档") : (event.lifecycle == .trashed ? L10n.text("在回收站中") : ""), event.tags.joined(separator: ", "), dateLabel, summary].filter { !$0.isEmpty }.joined(separator: ", "))
+        .accessibilityLabel(spokenLabel)
 
     }
 }

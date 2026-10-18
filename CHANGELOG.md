@@ -2,6 +2,7 @@
 
 - Resolve the actual en/zh-Hans resource directories regardless of preferred localization or directory casing.
 - Cover lowercase zh-hans.lproj resources, fixing two failures exposed by GitHub-hosted macOS CI.
+- Precompute event-row text outside the SwiftUI builder to avoid an older compiler type-check timeout; displayed and spoken text stay the same.
 
 ## 1.13.0 — in-app updates
 
