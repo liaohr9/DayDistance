@@ -6,6 +6,7 @@ struct EventRepository: Sendable {
     private struct Envelope: Codable {
         let schemaVersion: Int
         let events: [CountdownEvent]
+        var automationReceipts: [String: AutomationReceipt]? = nil
     }
     private struct Schema: Decodable { let schemaVersion: Int }
 
@@ -64,12 +65,19 @@ struct EventRepository: Sendable {
         for event in envelope.events { _ = try event.validated(now: event.updatedAt) }
         return envelope.events
     }
-    func save(_ events: [CountdownEvent], replacing expected: [CountdownEvent]) throws {
+    func save(_ events: [CountdownEvent], replacing expected: [CountdownEvent], automationReceipt: (String, AutomationReceipt)? = nil) throws {
         try withWriteLock {
             // Validation and replacement share a lock across application processes.
             guard try load() == expected else { throw EventError.changedData }
-            try write(events)
+            try write(events, automationReceipt: automationReceipt)
         }
+    }
+    func automationReceipt(for key: String) throws -> AutomationReceipt? { try receipts()[key] }
+    private func receipts() throws -> [String: AutomationReceipt] {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return [:] }
+        let data = try Data(contentsOf: fileURL)
+        _ = try Self.decodeSnapshot(data)
+        return try JSONDecoder().decode(Envelope.self, from: data).automationReceipts ?? [:]
     }
     private func withWriteLock<T>(_ action: () throws -> T) throws -> T {
         try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -84,8 +92,18 @@ struct EventRepository: Sendable {
         }
         return try action()
     }
-    private func write(_ events: [CountdownEvent]) throws {
-        try Self.encodeSnapshot(events).write(to: fileURL, options: .atomic)
+    private func write(_ events: [CountdownEvent], automationReceipt: (String, AutomationReceipt)? = nil) throws {
+        var savedReceipts = try receipts()
+        if let (key, receipt) = automationReceipt {
+            guard savedReceipts[key] == nil || savedReceipts[key] == receipt else { throw EventError.changedData }
+            guard savedReceipts[key] != nil || savedReceipts.count < 4096 else { throw AutomationFailure("LIMIT_REACHED", "Automation receipt storage is full; no event was created.") }
+            savedReceipts[key] = receipt
+        }
+        let snapshot = try Self.encodeSnapshot(events)
+        var envelope = try JSONDecoder().decode(Envelope.self, from: snapshot)
+        envelope.automationReceipts = savedReceipts.isEmpty ? nil : savedReceipts
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(envelope).write(to: fileURL, options: .atomic)
     }
     static func encodeSnapshot(_ events: [CountdownEvent]) throws -> Data {
         guard Set(events.map(\.id)).count == events.count else { throw EventError.duplicateID }

@@ -9,6 +9,11 @@ final class EventStore {
     private(set) var events: [CountdownEvent] = []
     private(set) var isLoaded = false
     private(set) var firstEventAdded = false
+    @ObservationIgnored private(set) var lastPersistenceFailure: Error?
+    func automationReceipt(for key: String) throws -> AutomationReceipt? {
+        guard let repository else { throw EventError.unavailableContainer }
+        return try repository.automationReceipt(for: key)
+    }
     var errorMessage: String?
     var editingEvent: EventEditSession?
     var isTransferring = false
@@ -63,7 +68,9 @@ final class EventStore {
             return nil
         }
     }
+    @ObservationIgnored var prepareForReload: (() -> Bool)?
     func reload() {
+        if let prepareForReload, !prepareForReload() { return }
         do {
             let (repository, loaded): (EventRepository, [CountdownEvent])
             if let current = self.repository { (repository, loaded) = (current, try current.load()) }
@@ -88,7 +95,8 @@ final class EventStore {
         editingEvent = EventEditSession(event: event)
     }
     @discardableResult
-    func upsert(_ event: CountdownEvent, replacing original: CountdownEvent?) -> Bool {
+    func upsert(_ event: CountdownEvent, replacing original: CountdownEvent?, automationReceipt: (String, AutomationReceipt)? = nil) -> Bool {
+        lastPersistenceFailure = nil
         guard isLoaded, !isTransferring, !isSmartListModalPresented else { return false }
         do {
             guard events.first(where: { $0.id == event.id }) == original else { throw EventError.changedData }
@@ -97,10 +105,11 @@ final class EventStore {
             if let index = updated.firstIndex(where: { $0.id == value.id }) { updated[index] = value }
             else { updated.append(value) }
             let wasEmpty = events.isEmpty
-            let saved = persist(updated, name: L10n.text(original == nil ? "新建事件" : "编辑事件"))
+            let saved = persist(updated, name: L10n.text(original == nil ? "新建事件" : "编辑事件"), automationReceipt: automationReceipt)
             if saved && wasEmpty { firstEventAdded = true }
             return saved
         } catch {
+            lastPersistenceFailure = error
             if case EventError.changedData = error { refreshAfterConflict() }
             errorMessage = error.localizedDescription
             return false
@@ -238,12 +247,13 @@ final class EventStore {
             errorMessage = L10n.format("无法撤销，当前数据已保留：%@", error.localizedDescription)
         }
     }
-    private func persist(_ updated: [CountdownEvent], name: String) -> Bool {
+    private func persist(_ updated: [CountdownEvent], name: String, automationReceipt: (String, AutomationReceipt)? = nil) -> Bool {
+        lastPersistenceFailure = nil
         guard isLoaded, let repository else { errorMessage = EventError.unavailableContainer.localizedDescription; return false }
         guard updated != events else { errorMessage = nil; return true }
         do {
             let before = events
-            try repository.save(updated, replacing: before)
+            try repository.save(updated, replacing: before, automationReceipt: automationReceipt)
             events = updated
             recordBackups(before: before, after: updated)
             registerUndo(before: before, after: updated, name: name, manager: eventUndoManager)
@@ -252,6 +262,7 @@ final class EventStore {
             return true
         } catch {
             if case EventError.changedData = error { refreshAfterConflict() }
+            lastPersistenceFailure = error
             errorMessage = L10n.format("保存失败，原数据已保留：%@", error.localizedDescription)
             return false
         }

@@ -7,6 +7,9 @@ import WidgetKit
 @main
 @MainActor enum DayDistanceLaunch {
     static func main() {
+        if CommandLine.arguments.dropFirst().first=="--cli" {
+            AutomationRuntime.launch(arguments:Array(CommandLine.arguments.dropFirst(2)));return
+        }
         switch BackgroundReminderInvocation.mode(arguments: CommandLine.arguments) {
         case .normal:
             let language = AppLanguage.selection()
@@ -77,7 +80,10 @@ struct DayDistanceApp: App {
                 .environment(\.eventReminders, reminders)
                 .frame(minWidth: 640, minHeight: 360)
                 .task {
-                    if !store.isLoaded { store.reload() }
+                    await AutomationController.shared.start(store:store,reminders:reminders,open:{ id in
+                        activateMain()
+                        _ = try ShortcutEventService.shared.open(identifier:id.uuidString)
+                    })
                     updates.start {
                         store.canManageData && NSApp.modalWindow == nil &&
                         !NSApp.windows.contains(where: { $0.attachedSheet != nil })

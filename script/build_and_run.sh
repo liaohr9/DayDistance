@@ -35,6 +35,7 @@ if [[ "$MODE" != --install-only ]]; then
  python3 "$ROOT_DIR/script/test_release_notes.py" > "$BUILD_DIR/release-notes-tests.log" 2>&1 || { cat "$BUILD_DIR/release-notes-tests.log"; exit 1; }
  python3 "$ROOT_DIR/script/test_widget_maintenance.py" > "$BUILD_DIR/widget-maintenance-tests.log" 2>&1 || { cat "$BUILD_DIR/widget-maintenance-tests.log"; exit 1; }
  python3 "$ROOT_DIR/script/test_updates.py" > "$BUILD_DIR/update-tests.log" 2>&1 || { cat "$BUILD_DIR/update-tests.log"; exit 1; }
+ python3 "$ROOT_DIR/script/test_automation.py" > "$BUILD_DIR/automation-tests.log" 2>&1 || { cat "$BUILD_DIR/automation-tests.log"; exit 1; }
  python3 "$ROOT_DIR/script/test_settings.py" > "$BUILD_DIR/settings-tests.log" 2>&1 || { cat "$BUILD_DIR/settings-tests.log"; exit 1; }
  zsh "$ROOT_DIR/script/test_batch.sh" > "$BUILD_DIR/batch-tests.log" 2>&1 || { cat "$BUILD_DIR/batch-tests.log"; exit 1; }
  zsh "$ROOT_DIR/script/test_dock_icon.sh" > "$BUILD_DIR/dock-icon-tests.log" 2>&1 || { cat "$BUILD_DIR/dock-icon-tests.log"; exit 1; }

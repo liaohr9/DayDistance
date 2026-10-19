@@ -1,7 +1,8 @@
 import Foundation
 import AppKit
+import UserNotifications
 @main struct SettingsProbe {
-    @MainActor static func main() throws {
+    @MainActor static func main() async throws {
         let suite = "daydistance-settings-test-" + UUID().uuidString
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -9,7 +10,7 @@ import AppKit
         precondition(SettingsRouting.section(defaults: defaults) == .general)
         SettingsRouting.request(.notifications, defaults: defaults, center: center)
         precondition(SettingsRouting.section(defaults: defaults) == .notifications)
-        precondition(SettingsSection.allCases.count == 5)
+        precondition(SettingsSection.allCases.count == 6)
         defaults.set("removed-page", forKey: SettingsRouting.key)
         precondition(SettingsRouting.section(defaults: defaults) == .general)
         let root = URL(fileURLWithPath: CommandLine.arguments[1])
@@ -40,6 +41,33 @@ import AppKit
         precondition(userWindow.title == "File", "Never translate user window names")
         L10n.useLanguage(.english); NativeMenuLanguage.refresh(menu)
         precondition(file.title == "File" && file.submenu!.items[0].title == "Close")
+        let blocked=root.appendingPathComponent("blocked-owner")
+        try Data("not a directory".utf8).write(to:blocked)
+        let idle=EventStore(repository:repository,automaticallyLoad:false)
+        let controller=AutomationController()
+        let reminder=EventReminderService(client:AutomationQuietClient())
+        await controller.start(store:idle,reminders:reminder,open:{_ in},directory:blocked)
+        precondition(!idle.isLoaded && idle.errorMessage != nil,"ownership failure must be visible")
+        try FileManager.default.removeItem(at:blocked)
+        try FileManager.default.createDirectory(at:blocked,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+        let endpoint=blocked.appendingPathComponent("rpc");try Data("not a socket".utf8).write(to:endpoint)
+        idle.reload()
+        for _ in 0..<50 {if idle.isLoaded {break};try await Task.sleep(for:.milliseconds(20))}
+        precondition(idle.isLoaded && idle.errorMessage != nil,"listener failure must remain visible while ownership is retained")
+        try FileManager.default.removeItem(at:endpoint)
+        idle.reload()
+        for _ in 0..<50 {if idle.errorMessage==nil {break};try await Task.sleep(for:.milliseconds(20))}
+        let reply=try await Task.detached {try AutomationChannel.request(.init(operation:"capabilities"),directory:blocked)}.value
+        precondition(reply != nil && idle.errorMessage==nil,"retry must recover the listener without bypassing ownership")
+        print("AUTOMATION_OWNERSHIP_RECOVERY_PASS")
         print("Settings route persistence / invalid route fallback / all data modal guards PASS")
     }
+}
+
+@MainActor final class AutomationQuietClient:EventNotificationClient {
+ func authorizationStatus() async -> UNAuthorizationStatus {.denied}
+ func requestAuthorization() async throws -> Bool {false}
+ func pendingRequests() async -> [UNNotificationRequest] {[]}
+ func add(_ request:UNNotificationRequest) async throws {}
+ func removePending(identifiers:[String]) {}
 }

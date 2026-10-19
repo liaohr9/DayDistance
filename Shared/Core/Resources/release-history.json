@@ -2,6 +2,48 @@
   "schemaVersion": 1,
   "releases": [
     {
+      "version": "1.15.0",
+      "build": 44,
+      "date": "2026-10-19",
+      "sections": [
+        {
+          "kind": "added",
+          "items": [
+            {
+              "zh-Hans": "新增 CLI + JSON 与 MCP stdio，可由本机 Agent 创建、查询、修改、归档事件，以及移入回收站或恢复。",
+              "en": "Add a JSON CLI and MCP stdio server for local agents to create, query, edit, archive, trash and restore events."
+            },
+            {
+              "zh-Hans": "设置新增“自动化”，可分别授权读取和写入；支持安装用户级命令行工具，默认不开放事件访问。",
+              "en": "Add Automation settings with separate read/write access and a user-level command installer. Event access is off by default."
+            }
+          ]
+        },
+        {
+          "kind": "improved",
+          "items": [
+            {
+              "zh-Hans": "App 打开时通过本机私有通信处理命令，退出后可无窗口执行；沿用备份、提醒同步和小组件刷新。",
+              "en": "Route commands through the running app or process them without a window when it is closed, using the existing backup, reminder and widget-refresh paths."
+            },
+            {
+              "zh-Hans": "创建支持 requestId 重试去重，修改支持 revision 冲突检查；编辑中的草稿和文件操作会阻止外部写入。",
+              "en": "Deduplicate create retries using requestId and check revisions before edits. Active drafts and file operations block external mutations."
+            }
+          ]
+        },
+        {
+          "kind": "fixed",
+          "items": [
+            {
+              "zh-Hans": "确保冷启动打开指定事件后才确认成功；跨时区重试年度事件不会重复创建或错误冲突，初始化故障可明确重试。",
+              "en": "Acknowledge cold-start event opening only after the GUI accepts it; preserve yearly-event retries across time zones and allow recovery from local initialization failures."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.14.0",
       "build": 43,
       "date": "2026-10-19",

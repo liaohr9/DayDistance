@@ -8,6 +8,12 @@ spec = importlib.util.spec_from_file_location('prepare_update', Path(__file__).w
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 class NotesTests(unittest.TestCase):
+    def test_new_automation_release_has_bilingual_notes(self):
+        notes = module.release_notes("1.15.0", "44")
+        self.assertIn("MCP", notes["en"])
+        self.assertIn("自动化", notes["zh-Hans"])
+        self.assertIn("requestId", notes["en"])
+
     def test_version_is_exact_and_missing_version_blocks_packaging(self):
         notes = module.release_notes('1.14.0', '43')
         self.assertIn('刷新并修复', notes['zh-Hans'])

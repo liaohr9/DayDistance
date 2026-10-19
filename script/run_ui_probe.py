@@ -48,7 +48,7 @@ def main():
         }))
         if args.mode != "list":
             subprocess.run(["/usr/bin/xcrun", "swiftc", "-parse-as-library", *sdk_flags,
-                            str(project / "Shared/Core/L10n.swift"), str(project / "Shared/Core/Event.swift"), str(project / "Shared/Core/EventDates.swift"), str(project / "Shared/Core/EventRepository.swift"), str(project / "Shared/Core/ExportDestinationPolicy.swift"),
+                            str(project / "Shared/Core/L10n.swift"), str(project / "Shared/Core/Event.swift"), str(project / "Shared/Core/EventDates.swift"), str(project / "Shared/Core/EventRepository.swift"), str(project / "Shared/Core/AutomationProtocol.swift"), str(project / "Shared/Core/ExportDestinationPolicy.swift"),
                             str(project / "Tests/Fixtures/UIWriterProbe.swift"), "-o", str(Path(temporary) / "writer")],
                            env=env, check=True, timeout=90)
         print(f"Temporary UI probe: {app}", flush=True)

@@ -2,10 +2,10 @@
 import os
 import shutil
 from pathlib import Path
+env = dict(os.environ)
 import subprocess
 import tempfile
 root = Path(__file__).resolve().parent.parent
-env = os.environ.copy(); env.setdefault('DEVELOPER_DIR', '/Applications/Xcode.app/Contents/Developer')
 with tempfile.TemporaryDirectory(suffix='.noindex') as temporary:
     binary = str(Path(temporary) / 'undo-probe')
     sources = sorted((root/'Shared/Core').glob('*.swift')) + [root/'Shared/Platform/SharedContainer.swift', root/'App/Services/EventHistoryUndoManager.swift', root/'App/Stores/EventStore.swift',root/'Tests/Fixtures/UndoProbe.swift']

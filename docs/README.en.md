@@ -115,3 +115,7 @@ Basics prioritizes the name and date. Tags and yearly rules are in More Options,
 Open **Settings → Software Update** to toggle automatic checking, or choose **DayDistance → Check for Updates…**. While the app is open, Sparkle checks the signed GitHub feed daily. It asks before downloading and installing, verifies the feed and ZIP, then installs and reopens DayDistance. Editing and file operations defer installation. No event data is sent. Update signatures do not replace Developer ID signing or notarization.
 
 This feature starts with 1.13.0; earlier downloads need one manual upgrade. The signed feed and release archive must be published together before online updates work.
+
+## Agent automation (1.15.0)
+
+The native app includes a JSON CLI and MCP stdio server. Enable read and optional write access in Settings → Automation. Supports create, query, edit, archive and restore with draft protection. See the [bilingual CLI/MCP guide](AUTOMATION.md).

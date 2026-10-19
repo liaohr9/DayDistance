@@ -1,3 +1,12 @@
+# Changelog
+
+## 1.15.0 — local agent automation
+
+- Add a JSON CLI and ten MCP tools in the native app, with default-off read/write access.
+- Coordinate running and headless commands through one event store, retaining backup, reminder and widget refresh paths.
+- Protect drafts/revisions and create retries; handle cold opening and initialization recovery.
+- See [release details and known limits](docs/RELEASE-1.15.0.md) and [the CLI/MCP guide](docs/AUTOMATION.md).
+
 ## 1.14.0 — widget recovery and release history
 
 - Add offline Chinese/English Release Notes under Settings → Software Update, covering current changes and previous public versions.
@@ -22,8 +31,6 @@
 - Ask before download/install; validate feed and archive signatures, install and relaunch through Sparkle2.10.0.
 - Protect event/rule drafts and file operations; keep the app, widget and updater helpers arm64 only.
 - Publish signed update artifacts separately; preview builds remain unnotarized.
-
-# Changelog
 
 ## 1.12.1 source — Apply language immediately
 

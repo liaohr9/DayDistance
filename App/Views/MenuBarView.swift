@@ -50,13 +50,13 @@ struct MenuBarView: View {
 }
 
 enum SettingsSection: String, CaseIterable, Identifiable {
-    case general, notifications, data, widgets, updates
+    case general, notifications, data, widgets, automation, updates
     var id: Self { self }
     var label: String {
-        let key = switch self { case .general: "通用"; case .notifications: "通知与后台"; case .data: "数据与备份"; case .widgets: "小组件"; case .updates: "软件更新" }
+        let key = switch self { case .general: "通用"; case .notifications: "通知与后台"; case .data: "数据与备份"; case .widgets: "小组件"; case .automation: "自动化"; case .updates: "软件更新" }
         return L10n.text(key)
     }
-    var symbol: String { switch self { case .general: "gearshape"; case .notifications: "bell"; case .data: "externaldrive"; case .widgets: "rectangle.3.group"; case .updates: "arrow.triangle.2.circlepath" } }
+    var symbol: String { switch self { case .general: "gearshape"; case .notifications: "bell"; case .data: "externaldrive"; case .widgets: "rectangle.3.group"; case .automation: "terminal"; case .updates: "arrow.triangle.2.circlepath" } }
 }
 enum SettingsDataAction: String { case importEvents, exportEvents, backups }
 enum SettingsRouting {
@@ -118,6 +118,7 @@ struct PreferencesView: View {
                         case .notifications: notifications
                         case .data: data
                         case .widgets: EmptyView()
+                        case .automation: AutomationSettingsView()
                         case .updates: softwareUpdates
                         }
                     }.formStyle(.grouped)
