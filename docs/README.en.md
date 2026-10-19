@@ -3,14 +3,14 @@
 <h1>DayDistance · 日距</h1>
 <p><strong>Give anticipation a date. Give memories a measure.</strong></p>
 <p>A native macOS day counter with desktop widgets. Local, simple, and open source.</p>
-<p><a href="https://github.com/liaohr9/DayDistance/releases/tag/v1.14.0-preview.1">Download preview</a> · <a href="../README.md">中文</a> · <a href="BUILDING.md">Build guide</a></p>
+<p><a href="https://github.com/liaohr9/DayDistance/releases/tag/v1.15.0-preview.1">Download preview</a> · <a href="../README.md">中文</a> · <a href="BUILDING.md">Build guide</a></p>
 </div>
 
 ![Native event list with six fictional examples in English](images/events-en.png)
 
-> **1.14.0 (43) is an unnotarized developer preview for Apple Silicon.** The App ZIP uses ad hoc signing, without a Developer ID certificate or Apple notarization. macOS may block downloaded builds. This is not a notarized production release; wait for a notarized version or build from source if blocked. No system-security changes are required or recommended.
+> **1.15.0 (44) is an unnotarized developer preview for Apple Silicon.** The App ZIP uses ad hoc signing, without a Developer ID certificate or Apple notarization. macOS may block downloaded builds. This is not a notarized production release; wait for a notarized version or build from source if blocked. No system-security changes are required or recommended.
 
-This update adds automatic widget registration and Refresh & Repair Widgets in Settings. Review changes before installing; afterward, open Settings → Software Update → Release Notes for offline Chinese/English version history. Repair preserves events and widget configurations. Final gallery and desktop rendering remain controlled by macOS.
+This update adds a JSON CLI and MCP stdio server for local agents. Enable read and optional write access in Settings → Automation; both start off. Protect active drafts, check revisions and safely retry creates. Review localized changes before updating, or read offline history afterward. See the [automation guide](AUTOMATION.md) and [release notes](RELEASE-1.15.0.md).
 
 ## App language
 
@@ -30,7 +30,7 @@ No accounts, subscriptions, advertisements, telemetry, or cloud sync. Events sta
 
 ## Get started
 
-1. Download the **Apple Silicon preview ZIP** from [Releases](https://github.com/liaohr9/DayDistance/releases/tag/v1.14.0-preview.1). Requires Apple Silicon (arm64) and macOS14+. Tested on macOS27; other supported versions still need runtime testing.
+1. Download the **Apple Silicon preview ZIP** from [Releases](https://github.com/liaohr9/DayDistance/releases/tag/v1.15.0-preview.1). Requires Apple Silicon (arm64) and macOS14+. Tested on macOS27; other supported versions still need runtime testing.
 2. Move `日距.app` into Applications, subject to the preview limitations above.
 3. Press `⌘N`, enter a name and date, and save. Disable All Day to specify a time.
 4. Right-click the desktop, choose Edit Widgets, and add DayDistance. Edit the widget to select events and presentation.
