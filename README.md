@@ -7,7 +7,7 @@
     <a href="https://github.com/liaohr9/DayDistance/releases"><img src="https://img.shields.io/badge/macOS-14%2B-24292f?logo=apple&logoColor=white" alt="macOS 14+" /></a>
     <img src="https://img.shields.io/badge/SwiftUI-native-F05138?logo=swift&logoColor=white" alt="Native SwiftUI" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-4A7C69" alt="MIT license" /></a>
-    <a href="https://github.com/liaohr9/DayDistance/releases/tag/v1.17.0-preview.1"><img src="https://img.shields.io/badge/release-developer_preview-D69B51" alt="Developer preview" /></a>
+    <a href="https://github.com/liaohr9/DayDistance/releases/tag/v1.17.1-preview.1"><img src="https://img.shields.io/badge/release-developer_preview-D69B51" alt="Developer preview" /></a>
   </p>
   <p><a href="#下载">下载</a> · <a href="#一分钟开始">快速开始</a> · <a href="#桌面小组件">桌面小组件</a> · <a href="#从源码构建">源码构建</a> · <a href="docs/README.en.md">English</a></p>
 </div>
@@ -16,9 +16,9 @@
 
 ![日距的原生事件列表，展示六个虚构事件及倒计时与正计时](docs/images/events.png)
 
-> **当前发布：1.17.0（48）开发预览版。** 提供 Apple Silicon（arm64）App ZIP，支持应用内检查、下载和安装更新。使用本地 ad hoc 签名，**尚无 Developer ID 签名及 Apple 公证**；从互联网下载后可能被 macOS 阻止运行。这不是已公证正式安装版。若系统阻止打开，请等待公证版本或自行从源码构建，无需关闭系统安全保护。
+> **当前发布：1.17.1（49）开发预览版。** 提供 Apple Silicon（arm64）App ZIP，支持应用内检查、下载和安装更新。使用本地 ad hoc 签名，**尚无 Developer ID 签名及 Apple 公证**；从互联网下载后可能被 macOS 阻止运行。这不是已公证正式安装版。若系统阻止打开，请等待公证版本或自行从源码构建，无需关闭系统安全保护。
 
-本次新增每天/每月日期重复，并合并普通列表与嵌套文件夹、到期后处理、纪念日显示、小组件今日时分和 MCP 启动修复。侧栏“列表”右侧 ＋ 统一创建分类；事件“显示”页可选择到期保留或移入回收站。详见[本次更新日志](docs/RELEASE-1.17.0.md)。
+本次优化本地备份与事件保存，事件撤销历史保留最近 100 次操作，减少长时间使用时的快照积累；同时修复增量构建遗漏更新框架的问题。详见[本次更新日志与测量边界](docs/RELEASE-1.17.1.md)。
 
 ## 应用语言
 
@@ -42,12 +42,12 @@
 
 ## 下载
 
-[**打开 Release 下载页 →**](https://github.com/liaohr9/DayDistance/releases/tag/v1.17.0-preview.1)
+[**打开 Release 下载页 →**](https://github.com/liaohr9/DayDistance/releases/tag/v1.17.1-preview.1)
 
 | 文件 | 用途 |
 | :--- | :--- |
-| [DayDistance-1.17.0-macOS-arm64-preview.zip](https://github.com/liaohr9/DayDistance/releases/download/v1.17.0-preview.1/DayDistance-1.17.0-macOS-arm64-preview.zip) | 压缩的 App，适合手动放到 Applications。 |
-| [SHA256SUMS.txt](https://github.com/liaohr9/DayDistance/releases/download/v1.17.0-preview.1/SHA256SUMS.txt) | 下载完整性校验。 |
+| [DayDistance-1.17.1-macOS-arm64-preview.zip](https://github.com/liaohr9/DayDistance/releases/download/v1.17.1-preview.1/DayDistance-1.17.1-macOS-arm64-preview.zip) | 压缩的 App，适合手动放到 Applications。 |
+| [SHA256SUMS.txt](https://github.com/liaohr9/DayDistance/releases/download/v1.17.1-preview.1/SHA256SUMS.txt) | 下载完整性校验。 |
 
 **源码构建要求：**macOS 14 或更新系统；仅 Apple Silicon（arm64）。本次包内应用、小组件和更新器全部为 arm64，不再包含 Intel 支持。该版本在 macOS 27、Xcode 27 上构建与现场验证；较早受支持系统仍需进一步实测。桌面小组件需要 macOS 14+。
 
