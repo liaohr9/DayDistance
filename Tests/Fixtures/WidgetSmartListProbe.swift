@@ -23,6 +23,9 @@ import Foundation
         precondition(entry.at(now.addingTimeInterval(86400)).smartList?.id == list.id)
         precondition(entry.pageSignature == list.signature(pageSize: entry.pageSize))
         precondition(intent.makeEntry(events: [original,other], smartLists: [], at: now).error != nil)
+        let ordinary = SmartList(name: "Saved", kind: .ordinary, eventIDs: [other.id])
+        intent.smartListID = ordinary.id.uuidString
+        precondition(intent.makeEntry(events: [original, other], smartLists: [ordinary], at: now).automaticEvents.map(\.id) == [other.id])
         intent.smartListID = "invalid"
         precondition(intent.makeEntry(events: [original,other], smartLists: [list], at: now).error != nil)
         intent.contentSource = .events; intent.smartListID = nil; intent.eventID = original.id.uuidString

@@ -43,6 +43,7 @@ struct DayWidgetContent: View {
     private func single(_ event: CountdownEvent) -> some View {
         let value = DayCounter.snapshot(event: event, now: entry.date)
         let color = EventTheme.color(for: event.colorKey)
+        let todayClock = entry.displayOptions.showClock ? WidgetPolicy.todayRemainingClock(event: event, now: entry.date) : nil
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 7) {
                 if entry.displayOptions.showIcon { Image(systemName: event.symbol).foregroundStyle(color).accessibilityHidden(true) }
@@ -50,7 +51,11 @@ struct DayWidgetContent: View {
             }
             Spacer(minLength: 0)
             HStack(alignment: .firstTextBaseline, spacing: 5) {
-                if event.displayFormat == .days {
+                if let todayClock {
+                    Text(todayClock)
+                        .font(.system(size: 40, weight: .medium, design: .rounded))
+                        .minimumScaleFactor(0.6).lineLimit(1).monospacedDigit()
+                } else if event.displayFormat == .days {
                     Text(value.dayLabel)
                         .font(.system(size: value.days == 0 ? 36 : 52, weight: .medium, design: .rounded))
                         .minimumScaleFactor(0.6).lineLimit(1).monospacedDigit()
@@ -63,8 +68,8 @@ struct DayWidgetContent: View {
                 Spacer(minLength: 0)
             }.foregroundStyle(color)
             HStack(spacing: 5) {
-                Text(value.direction(for: event))
-                if value.showsClock && entry.displayOptions.showClock { Text(event.countdownDate(now: entry.date), style: .timer).monospacedDigit() }
+                Text(todayClock == nil ? value.direction(for: event) : L10n.text("还有"))
+                if todayClock == nil && value.showsClock && entry.displayOptions.showClock { Text(event.countdownDate(now: entry.date), style: .timer).monospacedDigit() }
             }.font(.caption).foregroundStyle(color)
             if entry.displayOptions.showTargetDate {
                 Text(event.dateLabel(now: entry.date))
@@ -75,7 +80,7 @@ struct DayWidgetContent: View {
     @ViewBuilder private var automaticOverview: some View {
         if entry.automaticEvents.isEmpty {
             if entry.events.isEmpty { message("添加你的第一个日子", symbol: "calendar.badge.plus", detail: "打开日距，记录一个期待") }
-            else if !entry.events.contains(where: \.isActive) { message("没有可显示的事件", symbol: "calendar.badge.plus", detail: "打开日距，恢复或新建事件") }
+            else if !entry.events.contains(where: { $0.isVisible(at: entry.date) }) { message("没有可显示的事件", symbol: "calendar.badge.plus", detail: "打开日距，恢复或新建事件") }
             else { message("没有符合条件的事件", symbol: "line.3.horizontal.decrease.circle", detail: entry.smartList == nil ? "编辑小组件，调整筛选条件" : "打开日距，编辑智能列表") }
         } else if family == .systemLarge {
             largeOverview
@@ -119,7 +124,7 @@ struct DayWidgetContent: View {
         }
     }
     @ViewBuilder private var manualOverview: some View {
-        let slots = entry.manualSelection.resolvedSlots(events: entry.events)
+        let slots = entry.manualSelection.resolvedSlots(events: entry.events, now: entry.date)
         if slots.isEmpty {
             message("选择要显示的日子", symbol: "calendar.badge.plus", detail: "编辑小组件，选择最多三个事件")
         } else {
@@ -149,20 +154,21 @@ struct DayWidgetContent: View {
     private func overviewRow(_ event: CountdownEvent, compact: Bool = false) -> some View {
         Link(destination: URL(string: "daydistance://event/\(event.id.uuidString)")!) {
             let value = DayCounter.snapshot(event: event, now: entry.date)
+            let todayClock = entry.displayOptions.showClock ? WidgetPolicy.todayRemainingClock(event: event, now: entry.date) : nil
             HStack(spacing: 10) {
                 if entry.displayOptions.showIcon {
                     Image(systemName: event.symbol).accessibilityHidden(true).frame(width: 25).foregroundStyle(EventTheme.color(for: event.colorKey))
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(event.title).font(.system(size: compact ? 12 : 13, weight: .medium)).lineLimit(1)
-                    if value.showsClock && entry.displayOptions.showClock {
+                    if todayClock == nil && value.showsClock && entry.displayOptions.showClock {
                         Text(event.countdownDate(now: entry.date), style: .timer).font(.system(size: 10)).monospacedDigit().foregroundStyle(.secondary)
                     } else if entry.displayOptions.showTargetDate {
                         Text(event.dateLabel(now: entry.date)).font(.system(size: 10)).foregroundStyle(.secondary)
                     }
                 }
                 Spacer(minLength: 6)
-                Text(EventDisplayFormatter.summary(event: event, now: entry.date))
+                Text(todayClock.map { L10n.text("还有") + " " + $0 } ?? EventDisplayFormatter.summary(event: event, now: entry.date))
                     .font(.system(size: compact ? 11 : 13, weight: .semibold, design: .rounded)).monospacedDigit().foregroundStyle(EventTheme.color(for: event.colorKey))
                     .lineLimit(compact ? 1 : 2).minimumScaleFactor(0.7)
             }

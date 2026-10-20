@@ -88,3 +88,49 @@ extension SmartListTests {
         XCTAssertEqual(SmartList(sort: .title).nextUpdate(events: [earlier,later], after: now, timeZone: zone), later.targetDate)
     }
 }
+
+extension SmartListTests {
+    func testOrdinaryListsOnlyIncludeExplicitActiveMembers() throws {
+        let now = Date()
+        let a = CountdownEvent(title: "Homework", targetDate: now)
+        var b = CountdownEvent(title: "Archived", targetDate: now); b.lifecycle = .archived
+        let c = CountdownEvent(title: "Other", targetDate: now)
+        let list = SmartList(name: "Coursework", kind: .ordinary, eventIDs: [a.id, b.id])
+        XCTAssertEqual(list.evaluate(events: [a,b,c], now: now).events.map(\.id), [a.id])
+        XCTAssertTrue(SmartList(name: "Empty", kind: .ordinary).evaluate(events: [a], now: now).events.isEmpty)
+        XCTAssertTrue(SmartList(name: "Folder", kind: .folder).evaluate(events: [a], now: now).events.isEmpty)
+        XCTAssertNotEqual(list.pageIdentifier(pageSize: 6), SmartList().pageIdentifier(pageSize: 6))
+    }
+    func testHierarchyPathsCyclesAndSafeDelete() throws {
+        let top = SmartList(name: "School", kind: .folder)
+        let nested = SmartList(name: "Courses", kind: .folder, parentID: top.id)
+        let list = SmartList(name: "Homework", kind: .ordinary, parentID: nested.id)
+        let tree = [top,nested,list]
+        XCTAssertEqual(try ListHierarchy.validated(tree), tree)
+        XCTAssertEqual(ListHierarchy.path(for: list, in: tree), "School / Courses / Homework")
+        var cycle = top; cycle.parentID = nested.id
+        XCTAssertThrowsError(try ListHierarchy.validated([cycle,nested,list]))
+        var wrong = nested; wrong.parentID = list.id
+        XCTAssertThrowsError(try ListHierarchy.validated([top,wrong,list]))
+        let deleted = ListHierarchy.removing(nested.id, from: tree)
+        XCTAssertEqual(deleted.first(where: { $0.id == list.id })?.parentID, top.id)
+        XCTAssertEqual(deleted.count, 2)
+        XCTAssertNoThrow(try ListHierarchy.validated(deleted))
+    }
+    func testExclusiveMembershipMoveAndFolderAggregation() throws {
+        let event = CountdownEvent(title: "Essay", targetDate: Date())
+        let folder = SmartList(name: "School", kind: .folder)
+        let a = SmartList(name: "Courses", kind: .ordinary, parentID: folder.id, eventIDs: [event.id])
+        let b = SmartList(name: "Assignments", kind: .ordinary, parentID: folder.id)
+        let tree = [folder,a,b]
+        let moved = try ListHierarchy.assigning([event.id], to: b.id, in: tree)
+        XCTAssertEqual(moved[1].eventIDs, [])
+        XCTAssertEqual(moved[2].eventIDs, [event.id])
+        XCTAssertEqual(ListHierarchy.events(in: folder.id, lists: moved, events: [event], now: Date()).map(\.id), [event.id])
+        XCTAssertThrowsError(try ListHierarchy.assigning([event.id], to: folder.id, in: tree))
+        var duplicate = b; duplicate.eventIDs = [event.id]
+        XCTAssertThrowsError(try ListHierarchy.validated([folder,a,duplicate]))
+        let cleared = try ListHierarchy.assigning([event.id], to: nil, in: moved)
+        XCTAssertTrue(cleared.allSatisfy { $0.eventIDs.isEmpty })
+    }
+}

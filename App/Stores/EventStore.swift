@@ -79,11 +79,22 @@ final class EventStore {
             events = loaded
             isLoaded = true
             errorMessage = nil
+            _ = reconcileExpiredEvents()
             WidgetCenter.shared.reloadAllTimelines()
         } catch {
             isLoaded = false
             errorMessage = L10n.format("读取失败：%@", error.localizedDescription)
         }
+    }
+    var nextAutomaticTrashDate: Date? {
+        events.filter(\.isActive).compactMap { $0.automaticTrashDate() }.min()
+    }
+    /// Run only while idle; an open editor keeps its saved baseline and draft.
+    @discardableResult func reconcileExpiredEvents(now: Date = Date()) -> Bool {
+        guard canManageData else { return false }
+        let updated = events.map { $0.automaticallyTrashed(at: now) }
+        guard updated != events else { return true }
+        return persist(updated, name: L10n.text("到期移入回收站"), recordHistory: false)
     }
     func newEvent() {
         guard isLoaded, editingEvent == nil, !isTransferring, !isShowingBackups, !isHistoryModalPresented && !isSmartListModalPresented else { return }
@@ -135,6 +146,7 @@ final class EventStore {
         guard editingEvent == nil, !isShowingBackups, !isHistoryModalPresented && !isSmartListModalPresented, event.lifecycle != .trashed else { return false }
         var value = event
         value.lifecycle = event.lifecycle == .archived ? .active : .archived
+        if event.lifecycle == .archived { value.afterDate = .keep }
         return upsert(value, replacing: event)
     }
     @discardableResult func recover(_ event: CountdownEvent) -> Bool {
@@ -142,6 +154,7 @@ final class EventStore {
         var value = event
         value.lifecycle = event.wasArchivedBeforeTrash ? .archived : .active
         value.trashedAt = nil
+        value.afterDate = .keep
         value.wasArchivedBeforeTrash = false
         return upsert(value, replacing: event)
     }
@@ -176,13 +189,13 @@ final class EventStore {
             var value = event
             switch operation {
             case .archive: value.lifecycle = .archived
-            case .unarchive: value.lifecycle = .active
+            case .unarchive: value.lifecycle = .active; value.afterDate = .keep
             case .trash:
                 value.wasArchivedBeforeTrash = value.lifecycle == .archived
                 value.lifecycle = .trashed; value.trashedAt = now
             case .recover:
                 value.lifecycle = value.wasArchivedBeforeTrash ? .archived : .active
-                value.trashedAt = nil; value.wasArchivedBeforeTrash = false
+                value.trashedAt = nil; value.wasArchivedBeforeTrash = false; value.afterDate = .keep
             case .permanentlyDelete: break
             }
             value.updatedAt = now
@@ -247,7 +260,7 @@ final class EventStore {
             errorMessage = L10n.format("无法撤销，当前数据已保留：%@", error.localizedDescription)
         }
     }
-    private func persist(_ updated: [CountdownEvent], name: String, automationReceipt: (String, AutomationReceipt)? = nil) -> Bool {
+    private func persist(_ updated: [CountdownEvent], name: String, automationReceipt: (String, AutomationReceipt)? = nil, recordHistory: Bool = true) -> Bool {
         lastPersistenceFailure = nil
         guard isLoaded, let repository else { errorMessage = EventError.unavailableContainer.localizedDescription; return false }
         guard updated != events else { errorMessage = nil; return true }
@@ -256,7 +269,8 @@ final class EventStore {
             try repository.save(updated, replacing: before, automationReceipt: automationReceipt)
             events = updated
             recordBackups(before: before, after: updated)
-            registerUndo(before: before, after: updated, name: name, manager: eventUndoManager)
+            if recordHistory { registerUndo(before: before, after: updated, name: name, manager: eventUndoManager) }
+            else { eventUndoManager.invalidateHistory() }
             errorMessage = nil
             WidgetCenter.shared.reloadAllTimelines()
             return true

@@ -4,7 +4,7 @@ import Foundation
 enum EventDisplayFormatter {
     static func summary(event: CountdownEvent, now: Date, timeZone: TimeZone = .autoupdatingCurrent) -> String {
         let snapshot = DayCounter.snapshot(event: event, now: now, timeZone: timeZone)
-        if event.displayFormat == .days || (event.displayFormat == .anniversary && !event.repeatYearly) {
+        if event.displayFormat == .days {
             return snapshot.summary(for: event)
         }
         if event.displayFormat == .anniversary {
@@ -44,7 +44,6 @@ enum EventDisplayFormatter {
             return parts.isEmpty ? dayDuration(snapshot.days) : parts.joined(separator: " ")
         case .anniversary:
             let remainder = dayDuration(snapshot.days)
-            guard event.repeatYearly else { return remainder }
             return anniversary(event: event, now: now, timeZone: timeZone, remainder: remainder)
         }
     }
@@ -60,6 +59,14 @@ enum EventDisplayFormatter {
     }
 
     private static func anniversary(event: CountdownEvent, now: Date, timeZone: TimeZone, remainder: String) -> String {
+        if !event.repeatYearly {
+            let calendar = CalendarDay.calendar(timeZone)
+            let original = calendar.startOfDay(for: event.originalDate(timeZone: timeZone))
+            let today = calendar.startOfDay(for: now)
+            let years = calendar.dateComponents([.year], from: original, to: today).year ?? 0
+            guard years > 0 else { return remainder }
+            return L10n.format("%ld 周年 · %@", years, remainder)
+        }
         let original = event.calendarDay ?? CalendarDay(date: event.targetDate, timeZone: timeZone)
         let year = CalendarDay.calendar(timeZone).component(.year, from: event.countdownDate(now: now, timeZone: timeZone))
         return L10n.format("%ld 周年 · %@", max(0, year - original.year), remainder)

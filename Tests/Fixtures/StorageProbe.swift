@@ -66,7 +66,7 @@ import Darwin
                 let fault: Data
                 if newer {
                     var envelope = try JSONSerialization.jsonObject(with: baseline) as! [String: Any]
-                    envelope["schemaVersion"] = 8
+                    envelope["schemaVersion"] = 9
                     fault = try JSONSerialization.data(withJSONObject: envelope)
                 } else { fault = corrupt }
                 try fault.write(to: url, options: .atomic)

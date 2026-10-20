@@ -1,6 +1,8 @@
 import Foundation
 import CryptoKit
 
+enum ListKind: String, Codable, Sendable { case smart, ordinary, folder }
+
 enum SmartMatchMode: String, Codable, CaseIterable, Sendable { case all, any }
 enum SmartComparison: String, Codable, CaseIterable, Sendable { case contains, notContains, equals, notEquals, atMost, atLeast, before, after, between }
 enum SmartDateState: String, Codable, CaseIterable, Sendable { case future, today, past }
@@ -17,7 +19,7 @@ enum SmartRuleField: String, Codable, CaseIterable, Sendable {
 }
 enum SmartListError: LocalizedError {
     case invalidRule, invalidList
-    var errorDescription: String? { L10n.text("智能列表条件无效，请检查名称、条件和范围。") }
+    var errorDescription: String? { L10n.text("列表设置无效，请检查名称、位置和条件。") }
 }
 struct SmartRule: Codable, Equatable, Identifiable, Sendable {
     var id: UUID = UUID()
@@ -49,7 +51,16 @@ struct SmartList: Codable, Equatable, Identifiable, Sendable {
     var sort: WidgetSort = .nearest
     var prioritizePinned: Bool = false
     var skip: Int = 0
+    var kind: ListKind = .smart
+    var parentID: UUID?
+    var eventIDs: [UUID] = []
+    var symbol: String { kind == .folder ? "folder" : kind == .ordinary ? "list.bullet" : "line.3.horizontal.decrease.circle" }
+    var typeLabel: String { L10n.text(kind == .folder ? "文件夹" : kind == .ordinary ? "普通列表" : "智能列表") }
     func validated() throws -> Self {
+        guard eventIDs.count <= 10000, Set(eventIDs).count == eventIDs.count,
+              kind == .ordinary || eventIDs.isEmpty,
+              kind == .smart || rules.isEmpty,
+              parentID != id else { throw SmartListError.invalidList }
         var value = self; value.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.name.isEmpty, value.name.count <= 100, rules.count <= 100, (0...999999).contains(skip) else { throw SmartListError.invalidList }
         guard Set(rules.map(\.id)).count == rules.count else { throw EventError.duplicateID }
@@ -59,10 +70,11 @@ struct SmartList: Codable, Equatable, Identifiable, Sendable {
         guard rules.count <= 100, let valid = try? rules.map({ try $0.validated() }) else { return SmartListResult(matching: [], events: []) }
         let calendar = CalendarDay.calendar(timeZone)
         let today = calendar.startOfDay(for: now)
-        let active = events.filter(\.isActive)
+        let members = Set(eventIDs)
+        let active = events.filter { $0.isVisible(at: now, timeZone: timeZone) && (kind == .smart || (kind == .ordinary && members.contains($0.id))) }
         let dates = Dictionary(active.map { ($0.id, $0.countdownDate(now: now, timeZone: timeZone)) }, uniquingKeysWith: { first, _ in first })
         let matching = active.filter { event in
-            guard event.isActive else { return false }
+            guard event.isVisible(at: now, timeZone: timeZone) else { return false }
             let target = calendar.startOfDay(for: dates[event.id]!)
             let distance = calendar.dateComponents([.day], from: today, to: target).day ?? 0
             let state: SmartDateState = distance == 0 ? .today : distance > 0 ? .future : .past
@@ -152,10 +164,93 @@ struct SmartList: Codable, Equatable, Identifiable, Sendable {
         }
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         let encoded = conditions.map { String(decoding: try! encoder.encode($0), as: UTF8.self) }.sorted()
-        return String(decoding: try! encoder.encode(encoded), as: UTF8.self) + ":\(match.rawValue):\(sort.rawValue):\(prioritizePinned):\(skip):\(pageSize)"
+        let membership = kind == .smart ? "" : ":\(kind.rawValue):" + eventIDs.map(\.uuidString).sorted().joined(separator: ",")
+        return membership + String(decoding: try! encoder.encode(encoded), as: UTF8.self) + ":\(match.rawValue):\(sort.rawValue):\(prioritizePinned):\(skip):\(pageSize)"
     }
     func pageIdentifier(pageSize: Int) -> String {
         let hex = SHA256.hash(data: Data(signature(pageSize: pageSize).utf8)).prefix(16).map { String(format: "%02X", $0) }.joined()
         return "\(hex.prefix(8))-\(hex.dropFirst(8).prefix(4))-\(hex.dropFirst(12).prefix(4))-\(hex.dropFirst(16).prefix(4))-\(hex.suffix(12))"
+    }
+}
+
+
+extension SmartList {
+    private enum CodingKeys: String, CodingKey { case id, name, match, rules, sort, prioritizePinned, skip, kind, parentID, eventIDs }
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(UUID.self, forKey: .id)
+        name = try values.decode(String.self, forKey: .name)
+        match = try values.decode(SmartMatchMode.self, forKey: .match)
+        rules = try values.decode([SmartRule].self, forKey: .rules)
+        sort = try values.decode(WidgetSort.self, forKey: .sort)
+        prioritizePinned = try values.decode(Bool.self, forKey: .prioritizePinned)
+        skip = try values.decode(Int.self, forKey: .skip)
+        kind = try values.decodeIfPresent(ListKind.self, forKey: .kind) ?? .smart
+        parentID = try values.decodeIfPresent(UUID.self, forKey: .parentID)
+        eventIDs = try values.decodeIfPresent([UUID].self, forKey: .eventIDs) ?? []
+    }
+}
+
+/// All mutations are applied to one classification snapshot under the existing CAS lock.
+enum ListHierarchy {
+    static func validated(_ lists: [SmartList]) throws -> [SmartList] {
+        guard lists.count <= 100, Set(lists.map(\.id)).count == lists.count else { throw SmartListError.invalidList }
+        let values = try lists.map { try $0.validated() }
+        let byID = Dictionary(uniqueKeysWithValues: values.map { ($0.id, $0) })
+        var members = Set<UUID>()
+        for list in values {
+            for id in list.eventIDs { guard members.insert(id).inserted else { throw SmartListError.invalidList } }
+            var visited: Set<UUID> = [list.id]
+            var parent = list.parentID
+            while let id = parent {
+                guard visited.insert(id).inserted, let folder = byID[id], folder.kind == .folder else { throw SmartListError.invalidList }
+                parent = folder.parentID
+            }
+        }
+        return values
+    }
+    static func path(for list: SmartList, in lists: [SmartList]) -> String {
+        var parts = [list.name], parent = list.parentID, seen: Set<UUID> = [list.id]
+        while let id = parent, seen.insert(id).inserted, let folder = lists.first(where: { $0.id == id }) {
+            parts.insert(folder.name, at: 0); parent = folder.parentID
+        }
+        return parts.joined(separator: " / ")
+    }
+    static func descendants(of id: UUID, in lists: [SmartList]) -> Set<UUID> {
+        var found: Set<UUID> = [id]
+        var previous = 0
+        while found.count != previous {
+            previous = found.count
+            for list in lists where list.parentID.map(found.contains) == true { found.insert(list.id) }
+        }
+        return found
+    }
+    static func removing(_ id: UUID, from lists: [SmartList]) -> [SmartList] {
+        let parent = lists.first(where: { $0.id == id })?.parentID
+        return lists.filter { $0.id != id }.map { list in
+            var value = list
+            if value.parentID == id { value.parentID = parent }
+            return value
+        }
+    }
+    static func assigning(_ ids: Set<UUID>, to target: UUID?, in lists: [SmartList]) throws -> [SmartList] {
+        if let target { guard lists.contains(where: { $0.id == target && $0.kind == .ordinary }) else { throw SmartListError.invalidList } }
+        let updated = lists.map { list in
+            var value = list
+            if list.kind == .ordinary {
+                value.eventIDs.removeAll { ids.contains($0) }
+                if list.id == target { value.eventIDs += ids.sorted { $0.uuidString < $1.uuidString } }
+            }
+            return value
+        }
+        return try validated(updated)
+    }
+    static func events(in id: UUID, lists: [SmartList], events: [CountdownEvent], now: Date) -> [CountdownEvent] {
+        guard let list = lists.first(where: { $0.id == id }) else { return [] }
+        if list.kind != .folder { return list.evaluate(events: events, now: now).events }
+        let descendants = descendants(of: id, in: lists)
+        let members = Set(lists.filter { descendants.contains($0.id) && $0.kind != .folder }
+            .flatMap { $0.evaluate(events: events, now: now).events.map(\.id) })
+        return WidgetPolicy.sorted(events: events.filter { members.contains($0.id) }, now: now)
     }
 }

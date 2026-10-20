@@ -4,7 +4,8 @@ import argparse,json,plistlib,subprocess,uuid,select
 from pathlib import Path
 ap=argparse.ArgumentParser();ap.add_argument('app',type=Path);ap.add_argument('--mode',choices=['disabled','full','busy','readonly','open'],default='full');args=ap.parse_args()
 app=args.app.resolve();info=plistlib.loads((app/'Contents/Info.plist').read_bytes())
-assert info['CFBundleIdentifier']=='local.dd.agentqa','Only the explicitly disposable QA app may be mutated'
+identity=info['CFBundleIdentifier']
+assert identity=='local.dd.agentqa' or (identity.startswith('local.dd.mcplaunch') and identity.endswith('qa')), 'Only the explicitly disposable QA app may be mutated'
 cmd=[str(app/'Contents/MacOS/DayDistance'),'--cli']
 def cli(*arguments,code=0,stdin=None):
  r=subprocess.run(cmd+list(arguments),input=stdin,text=True,capture_output=True,timeout=40)

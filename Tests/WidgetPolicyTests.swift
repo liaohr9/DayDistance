@@ -8,6 +8,54 @@ final class WidgetPolicyTests: XCTestCase {
     func event(_ seconds: TimeInterval, id: UUID = UUID()) -> CountdownEvent {
         CountdownEvent(id: id, title: "日子", targetDate: now.addingTimeInterval(seconds))
     }
+    func testTodayRemainingClockUsesHoursAndMinutesOnly() {
+        let zone = TimeZone(secondsFromGMT: 0)!
+        let future = event(3 * 3600 + 25 * 60 + 39)
+        XCTAssertEqual(WidgetPolicy.todayRemainingClock(event: future, now: now, timeZone: zone), "03:25")
+        XCTAssertEqual(WidgetPolicy.todayRemainingClock(event: event(59), now: now, timeZone: zone), "00:00")
+        XCTAssertNil(WidgetPolicy.todayRemainingClock(event: event(12 * 3600), now: now, timeZone: zone))
+        XCTAssertNil(WidgetPolicy.todayRemainingClock(event: event(-60), now: now, timeZone: zone))
+        var allDay = future; allDay.isAllDay = true; allDay.calendarDay = CalendarDay(date: now, timeZone: zone)
+        XCTAssertNil(WidgetPolicy.todayRemainingClock(event: allDay, now: now, timeZone: zone))
+    }
+    func testTodayClockTimelineIsMinuteBasedAndBounded() {
+        let target = event(3 * 3600 + 25 * 60)
+        let dates = WidgetPolicy.timelineDates(events: [target], now: now, timeZone: TimeZone(secondsFromGMT: 0)!, includeTodayClock: true)
+        XCTAssertEqual(dates.count, 64)
+        XCTAssertEqual(dates[1].timeIntervalSince(now), 0.01, accuracy: 0.0001)
+        XCTAssertEqual(dates.last!.timeIntervalSince(now), 62 * 60 + 0.01, accuracy: 0.0001)
+        let fractional = event(3 * 3600 + 25 * 60 + 39)
+        let fractionalDates = WidgetPolicy.timelineDates(events: [fractional], now: now, timeZone: TimeZone(secondsFromGMT: 0)!, includeTodayClock: true)
+        XCTAssertEqual(fractionalDates[1].timeIntervalSince(now), 39.01, accuracy: 0.0001)
+        XCTAssertEqual(WidgetPolicy.todayRemainingClock(event: fractional, now: fractionalDates[1], timeZone: TimeZone(secondsFromGMT: 0)!), "03:24")
+        let plain = WidgetPolicy.timelineDates(events: [target], now: now, timeZone: TimeZone(secondsFromGMT: 0)!)
+        XCTAssertLessThan(plain.count, 10)
+        let expired = WidgetPolicy.timelineDates(events: [event(-60)], now: now, timeZone: TimeZone(secondsFromGMT: 0)!, includeTodayClock: true)
+        XCTAssertLessThan(expired.count, 10)
+    }
+    func testUnselectedTodayEventDoesNotScheduleMinuteArchives() {
+        let future = event(3600), past = event(-3600), zone = TimeZone(secondsFromGMT: 0)!
+        let selectedPast = WidgetPolicy.timelineDates(events: [future, past], now: now, timeZone: zone, includeTodayClock: true, clockEventIDs: [past.id])
+        XCTAssertLessThan(selectedPast.count, 10)
+        let selectedFuture = WidgetPolicy.timelineDates(events: [future, past], now: now, timeZone: zone, includeTodayClock: true, clockEventIDs: [future.id])
+        XCTAssertEqual(selectedFuture[1].timeIntervalSince(now), 0.01, accuracy: 0.0001)
+        let missing = WidgetPolicy.timelineDates(events: [future, past], now: now, timeZone: zone, includeTodayClock: true, clockEventIDs: [])
+        XCTAssertEqual(missing, selectedPast)
+    }
+    func testTodayClockRespectsLocalDayAndCrossesMidnight() {
+        let utc = TimeZone(secondsFromGMT: 0)!, tokyo = TimeZone(secondsFromGMT: 9 * 3600)!
+        let target = event(4 * 3600)
+        XCTAssertNotNil(WidgetPolicy.todayRemainingClock(event: target, now: now, timeZone: utc))
+        XCTAssertNil(WidgetPolicy.todayRemainingClock(event: target, now: now, timeZone: tokyo))
+        let nextDay = event(13 * 3600)
+        let midnight = now.addingTimeInterval(12 * 3600)
+        let dates = WidgetPolicy.timelineDates(events: [nextDay], now: now, timeZone: utc, includeTodayClock: true)
+        XCTAssertTrue(dates.contains(midnight))
+        XCTAssertTrue(dates.contains(midnight.addingTimeInterval(60.01)))
+        XCTAssertNil(WidgetPolicy.todayRemainingClock(event: nextDay, now: now, timeZone: utc))
+        XCTAssertEqual(WidgetPolicy.todayRemainingClock(event: nextDay, now: midnight, timeZone: utc), "01:00")
+        XCTAssertNil(WidgetPolicy.todayRemainingClock(event: nextDay, now: nextDay.targetDate, timeZone: utc))
+    }
     func testOverviewFutureThenMostRecentPast() {
         let a = event(3600), b = event(7200), c = event(-60), d = event(-120)
         XCTAssertEqual(WidgetPolicy.sorted(events: [d,b,c,a], now: now).map(\.id), [a.id,b.id,c.id,d.id])

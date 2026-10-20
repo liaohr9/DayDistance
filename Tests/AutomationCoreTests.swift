@@ -45,4 +45,9 @@ final class AutomationCoreTests: XCTestCase {
       "permanent removal must not silently recreate a retried request")
     XCTAssertTrue(try repo.load().isEmpty)
   }
+    func testCLIParsesOneShotExpiry() throws {
+        let request = try AutomationCLI.parse(["events", "create", "--title", "Once", "--at", "2026-12-01T12:00:00Z", "--request-id", "once", "--after-date", "trash"])
+        XCTAssertEqual(request.arguments["afterDate"], .string("trash"))
+    }
+
 }

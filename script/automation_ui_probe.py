@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """Run the production app/CLI in a signed sandbox with disposable in-container data."""
-import os,plistlib,subprocess
+import argparse,os,plistlib,subprocess
 from pathlib import Path
 env = dict(os.environ)
 p=Path(__file__).resolve().parent.parent
-root=p/'Validation/automation/qa.noindex'
+parser=argparse.ArgumentParser()
+parser.add_argument('--root',type=Path,default=p/'Validation/automation/qa.noindex')
+parser.add_argument('--bundle-id',default='local.dd.agentqa')
+args=parser.parse_args()
+assert args.bundle_id.startswith('local.dd.') and args.bundle_id.endswith('qa'), 'Disposable QA identities only'
+root=args.root.resolve()
+assert root.name.endswith('.noindex'), 'Keep QA applications out of Spotlight'
 root.mkdir(parents=True,exist_ok=True)
 app=root/'Automation QA.app'
 contents=app/'Contents';(contents/'MacOS').mkdir(parents=True,exist_ok=True)
@@ -19,7 +25,7 @@ shared=root/'SharedContainer.swift';shared.write_text(s)
 sources=sorted((p/'Shared/Core').glob('*.swift'))+sorted((p/'Shared/Presentation').glob('*.swift'))+[shared]+sorted((p/'App/Stores').glob('*.swift'))+sorted((p/'App/Views').glob('*.swift'))+sorted((p/'App/Services').glob('*.swift'))+sorted((p/'App/Intents').glob('*.swift'))+[p/'App/DayDistanceApp.swift']
 subprocess.run(['xcrun','swiftc','-parse-as-library','-target','arm64-apple-macos14.0',*map(str,sources),'-o',str(contents/'MacOS/DayDistance')],env=env,check=True,timeout=180)
 info=plistlib.loads((p/'Config/App-Info.plist').read_bytes())
-info.update(CFBundleIdentifier='local.dd.agentqa',CFBundleExecutable='DayDistance',CFBundleName='日距自动化验证',CFBundleDisplayName='日距自动化验证',CFBundleShortVersionString='1.15.0',CFBundleVersion='44',LSMinimumSystemVersion='14.0',DayDistanceStorageMode='qa',LSUIElement=False)
+info.update(CFBundleIdentifier=args.bundle_id,CFBundleExecutable='DayDistance',CFBundleName='日距自动化验证',CFBundleDisplayName='日距自动化验证',CFBundleShortVersionString='1.15.0',CFBundleVersion='44',LSMinimumSystemVersion='14.0',DayDistanceStorageMode='qa',LSUIElement=False)
 (contents/'Info.plist').write_bytes(plistlib.dumps(info))
 for lang in ['en','zh-Hans']:
  import shutil

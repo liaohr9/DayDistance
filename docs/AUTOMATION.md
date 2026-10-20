@@ -20,6 +20,8 @@ daydistance events create --title '旅行' --date 2027-03-01 --request-id trip-2
 '/Applications/日距.app/Contents/MacOS/DayDistance' --cli events list
 ```
 
+MCP 可以持续监听，同时通过访达、Spotlight 或 Dock 正常打开主窗口。更新应用后，已有的 MCP 连接需要在 Agent 客户端重连一次，才会使用新可执行文件。
+
 普通命令输出单份 JSON。`--help` 输出帮助；`--json` 可省略。`--stdin` 从标准输入读取一个完整 JSON 文档，读至 EOF，输入上限 64 KiB。
 
 ```sh
@@ -89,3 +91,9 @@ Use `--date YYYY-MM-DD` for an all-day calendar date, or `--at ISO8601` for a ti
 - Local validation is separate from public release. Developer preview packages remain unnotarized until Developer ID signing and Apple notarization are completed.
 
 - Known preview limit: unusually large MCP responses (over 2 MiB including both content representations) close the stdio session. Reconnect with a smaller list limit. A bounded pagination error is deferred. / 已知预览边界：MCP 的双份内容合计超过 2 MiB 时会关闭连接，请用较小的 limit 分页；明确的分页错误提示待补充。
+
+### After-date behavior / 到期后处理
+
+`events create` and `events update` accept `--after-date keep|trash` (JSON/MCP: `afterDate`). The default `keep` preserves the original date and counts elapsed days. `trash` hides an expired nonrepeating event from widgets and moves it to recoverable Trash when the app/CLI next processes the store. All-day events expire at the start of the following local day. Restoring an event changes this field to `keep`. Yearly repeat and `trash` cannot be combined.
+
+例如：`daydistance events create --title "Submit assignment" --at 2027-01-15T18:00:00+08:00 --after-date trash --request-id assignment-2027-01-15`。GUI 中在事件的“显示 → 到期后”设置；保留原日期的纪念事件可选择天数或周年格式。

@@ -7,13 +7,15 @@ struct WidgetManualSelection: Equatable {
     var enabled = false
     var slotIDs: [String?] = []
 
-    func resolvedSlots(events: [CountdownEvent]) -> [WidgetManualSlot] {
+    func resolvedSlots(events: [CountdownEvent], now: Date = Date()) -> [WidgetManualSlot] {
         var seen = Set<String>()
         return slotIDs.prefix(3).compactMap { rawID in
             guard let rawID, !rawID.isEmpty, rawID != Self.noSelectionID else { return nil }
             let uuid = UUID(uuidString: rawID)
             let identity = uuid?.uuidString ?? rawID
             guard seen.insert(identity).inserted else { return nil }
+            if let uuid, let event = events.first(where: { $0.id == uuid }),
+               let expiry = event.automaticTrashDate(), expiry <= now { return nil }
             guard let uuid, let event = events.first(where: { $0.id == uuid && $0.isActive }) else {
                 return .unavailable(identity)
             }

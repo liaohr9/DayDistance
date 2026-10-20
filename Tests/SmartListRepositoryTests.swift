@@ -23,7 +23,7 @@ final class SmartListRepositoryTests: XCTestCase {
         let root = temporary(); defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let url = root.appendingPathComponent("lists.json"), repo = SmartListRepository(fileURL: root.appendingPathComponent("lists.json"))
-        for bytes in [Data("oops".utf8), Data("{\"schemaVersion\":2,\"lists\":[]}".utf8)] {
+        for bytes in [Data("oops".utf8), Data("{\"schemaVersion\":999,\"lists\":[]}".utf8)] {
             try bytes.write(to: url)
             XCTAssertThrowsError(try repo.load()); XCTAssertThrowsError(try repo.save([], replacing: []))
             XCTAssertEqual(try Data(contentsOf: url), bytes)
@@ -174,5 +174,35 @@ extension SmartListRepositoryTests {
         try FileManager.default.createSymbolicLink(at: lock, withDestinationURL: repo.fileURL)
         XCTAssertThrowsError(try repo.restore(backup, replacingLiveFingerprint: validToken))
         XCTAssertEqual(try Data(contentsOf: repo.fileURL), original)
+    }
+}
+
+extension SmartListRepositoryTests {
+    func testLegacyDefaultsAndNewHierarchyBackups() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let repo = SmartListRepository(fileURL: root.appendingPathComponent("smart-lists.json"))
+        let old = SmartList(name: "Legacy")
+        let encoder = JSONEncoder()
+        var object = try JSONSerialization.jsonObject(with: encoder.encode(old)) as! [String: Any]
+        for key in ["kind", "parentID", "eventIDs"] { object.removeValue(forKey: key) }
+        let legacy = try JSONSerialization.data(withJSONObject: ["schemaVersion":1,"lists":[object]])
+        try legacy.write(to: repo.fileURL)
+        XCTAssertEqual(try repo.load(), [old])
+        XCTAssertEqual(try Data(contentsOf: repo.fileURL), legacy)
+        let folder = SmartList(name: "Life", kind: .folder)
+        let ordinary = SmartList(name: "Travel", kind: .ordinary, parentID: folder.id, eventIDs: [UUID()])
+        let updated = [old,folder,ordinary]
+        try repo.save(updated, replacing: [old])
+        XCTAssertEqual(try repo.load(), updated)
+        let json = try JSONSerialization.jsonObject(with: Data(contentsOf: repo.fileURL)) as! [String: Any]
+        XCTAssertEqual(json["schemaVersion"] as? Int, 2)
+        let backup = try XCTUnwrap(repo.backups().first)
+        XCTAssertEqual(try repo.loadBackup(backup), updated)
+        var cycle = folder; cycle.parentID = folder.id
+        let bytes = try Data(contentsOf: repo.fileURL)
+        XCTAssertThrowsError(try repo.save([old,cycle,ordinary], replacing: updated))
+        XCTAssertEqual(try Data(contentsOf: repo.fileURL), bytes)
     }
 }

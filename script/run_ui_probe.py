@@ -2,6 +2,7 @@
 """Host real views on disposable events in a temporary, unindexed QA bundle."""
 import argparse
 import os
+import shutil
 from pathlib import Path
 import plistlib
 import subprocess
@@ -17,12 +18,14 @@ def restore_data_permissions(root):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("list", "faults", "read-corrupt", "read-newer", "disk-full", "lifecycle"), default="list")
+    parser.add_argument("--mode", choices=("list", "faults", "read-corrupt", "read-newer", "disk-full", "lifecycle", "expiration"), default="list")
     parser.add_argument("--sdk", type=Path, help="Explicit local SDK for QA compilation when full Xcode is unavailable")
+    parser.add_argument("--language", choices=("zh-Hans", "en"))
     args = parser.parse_args()
     sdk_flags = ["-sdk", str(args.sdk)] if args.sdk else []
     project = Path(__file__).resolve().parent.parent
     env = os.environ.copy()
+    if args.language: env["DAYDISTANCE_UI_LANGUAGE"] = args.language
     sources = sorted((project / "Shared/Core").glob("*.swift"))
     sources += sorted((project / "Shared/Presentation").glob("*.swift"))
     sources += [project / "Shared/Platform/SharedContainer.swift"] + sorted((project / "App/Stores").glob("*.swift"))
@@ -46,14 +49,15 @@ def main():
             "CFBundleName": "日距列表验证", "CFBundlePackageType": "APPL", "LSMinimumSystemVersion": "14.0",
             "CFBundleDevelopmentRegion": "zh-Hans",
         }))
-        if args.mode != "list":
+        shutil.copytree(project / "Shared/Core/Resources", contents / "Resources")
+        if args.mode not in ("list", "expiration"):
             subprocess.run(["/usr/bin/xcrun", "swiftc", "-parse-as-library", *sdk_flags,
                             str(project / "Shared/Core/L10n.swift"), str(project / "Shared/Core/Event.swift"), str(project / "Shared/Core/EventDates.swift"), str(project / "Shared/Core/EventRepository.swift"), str(project / "Shared/Core/AutomationProtocol.swift"), str(project / "Shared/Core/ExportDestinationPolicy.swift"),
                             str(project / "Tests/Fixtures/UIWriterProbe.swift"), "-o", str(Path(temporary) / "writer")],
                            env=env, check=True, timeout=90)
         print(f"Temporary UI probe: {app}", flush=True)
         print(f"{60 if args.mode == 'list' else 3} disposable events; press Command-Q to exit and remove the QA bundle and data.", flush=True)
-        process = subprocess.Popen([binary, temporary, args.mode])
+        process = subprocess.Popen([binary, temporary, args.mode], env=env)
         try:
             code = process.wait()
             if code:

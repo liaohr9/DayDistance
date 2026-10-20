@@ -123,7 +123,7 @@ import Foundation
     isMutating = true
     defer { isMutating = false }
     let fields: Set<String> = [
-      "title", "at", "date", "tags", "includesStartDay", "repeatYearly", "pinned",
+      "title", "at", "date", "tags", "includesStartDay", "repeatYearly", "pinned", "afterDate",
     ]
     var saved: CountdownEvent
     if op == "create" {
@@ -134,7 +134,7 @@ import Foundation
       let title = try string(a, "title", required: true)!
       let e = try patched(
         CountdownEvent(title: title, targetDate: Date()), arguments: a, creating: true)
-      let payload: JSONValue = .object([
+      var payloadFields: [String: JSONValue] = [
         "title": .string(e.title),
         "at": .string(e.isAllDay ? "" : AutomationDates.timestamp(e.targetDate)),
         "allDay": .bool(e.isAllDay),
@@ -144,7 +144,10 @@ import Foundation
           } ?? ""),
         "tags": .array(e.tags.map(JSONValue.string)), "includesStartDay": .bool(e.includesStartDay),
         "repeatYearly": .bool(e.repeatYearly), "pinned": .bool(e.isPinned),
-      ])
+      ]
+      // Keep default payloads byte-compatible with v1.15 idempotency receipts.
+      if e.afterDate != .keep { payloadFields["afterDate"] = .string(e.afterDate.rawValue) }
+      let payload = JSONValue.object(payloadFields)
       let keyHash = JSONValue.digest(Data(("daydistance-api-v1:" + key).utf8))
       let payloadHash = JSONValue.digest(try payload.encoded())
       if let receipt = try store.automationReceipt(for: keyHash) {
@@ -200,6 +203,7 @@ import Foundation
           old.lifecycle == .trashed && old.wasArchivedBeforeTrash ? .archived : .active
         value.trashedAt = nil
         value.wasArchivedBeforeTrash = false
+        value.afterDate = .keep
       default: break
       }
       guard store.upsert(value, replacing: old) else {
@@ -208,6 +212,8 @@ import Foundation
       }
       saved = store.events.first(where: { $0.id == old.id })!
     }
+    _ = store.reconcileExpiredEvents()
+    saved = store.events.first { $0.id == saved.id } ?? saved
     let reminderWarning = await sync()
     var data: [String: JSONValue] = [
       "event": dto(saved), "replayed": .bool(false),
@@ -248,6 +254,13 @@ import Foundation
         e[keyPath: target] = flag
       }
     }
+    if let raw = try string(a, "afterDate") {
+      guard let action = EventAfterDate(rawValue: raw) else { throw AutomationFailure.invalid("afterDate must be keep or trash.") }
+      e.afterDate = action
+    }
+    guard !e.repeatYearly || e.afterDate != .trash else {
+      throw AutomationFailure.invalid("Yearly repeating events cannot use afterDate=trash.")
+    }
     do { return try e.validated(now: Date()) } catch {
       throw AutomationFailure.invalid("Invalid event fields: \(error.localizedDescription)")
     }
@@ -272,7 +285,7 @@ import Foundation
       "at": .string(AutomationDates.timestamp(e.targetDate)), "allDay": .bool(e.isAllDay),
       "state": .string(e.lifecycle.rawValue), "tags": .array(e.tags.map(JSONValue.string)),
       "includesStartDay": .bool(e.includesStartDay), "repeatYearly": .bool(e.repeatYearly),
-      "pinned": .bool(e.isPinned),
+      "pinned": .bool(e.isPinned), "afterDate": .string(e.afterDate.rawValue),
     ]
     if let d = e.calendarDay {
       v["date"] = .string(String(format: "%04d-%02d-%02d", d.year, d.month, d.day))

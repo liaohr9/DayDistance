@@ -37,6 +37,11 @@ struct EventEditor: View {
     @State private var showMoreOptions: Bool
     @State private var nextReminderDate: Date?
     @State private var previewRevision = 0
+    private let lists: [SmartList]
+    private let saveCategory: ((UUID, UUID?, UUID?) -> String?)?
+    @State private var selectedListID: UUID?
+    @State private var membershipBaseline: UUID?
+    @State private var savedBaseline: CountdownEvent?
     @State private var isSaving = false
     @State private var selectedPage = EventEditorPage.basic
     @Environment(\.openSettings) private var openSettings
@@ -44,15 +49,21 @@ struct EventEditor: View {
     @State private var saveError: String?
     @FocusState private var nameFocused: Bool
 
-    init(session: EventEditSession, store: EventStore) {
+    init(session: EventEditSession, store: EventStore, lists: [SmartList] = [],
+         initialListID: UUID? = nil, currentListID: UUID? = nil,
+         saveCategory: ((UUID, UUID?, UUID?) -> String?)? = nil) {
         var draft = session.event
         draft.targetDate = draft.originalDate()
-        if !draft.repeatYearly && draft.displayFormat == .anniversary { draft.displayFormat = .days }
         self._event = State(initialValue: draft)
         self._tagsText = State(initialValue: draft.tags.joined(separator: ", "))
         self._showMoreOptions = State(initialValue: !draft.tags.isEmpty || draft.repeatYearly)
         self.session = session
         self.store = store
+        self.lists = lists
+        self.saveCategory = saveCategory
+        _selectedListID = State(initialValue: initialListID)
+        _membershipBaseline = State(initialValue: currentListID)
+        _savedBaseline = State(initialValue: session.original)
     }
 
     var body: some View {
@@ -83,7 +94,15 @@ struct EventEditor: View {
                     isSaving = true
                     Task { @MainActor in
                         let warning = !value.hasEnabledReminders ? nil : await requestReminderPermission()
-                        if store.upsert(value, replacing: session.original) {
+                        if store.upsert(value, replacing: savedBaseline) {
+                            savedBaseline = store.events.first { $0.id == value.id }
+                            if selectedListID != membershipBaseline, let saveCategory,
+                               let error = saveCategory(value.id, membershipBaseline, selectedListID) {
+                                saveError = L10n.format("事件已保存，但列表分类未保存：%@", error)
+                                isSaving = false
+                                return
+                            }
+                            membershipBaseline = selectedListID
                             if let warning { store.errorMessage = warning }
                             dismiss()
                         } else { saveError = store.errorMessage }
@@ -100,11 +119,11 @@ struct EventEditor: View {
                     event.reminderTime = event.isAllDay ? CalendarTime(hour: 9, minute: 0) : CalendarTime(date: event.targetDate)
                 }
             }
-            .onChange(of: event.repeatYearly) { if !event.repeatYearly && event.displayFormat == .anniversary { event.displayFormat = .days } }
+            .onChange(of: event.repeatYearly) { if event.repeatYearly { event.afterDate = .keep } }
             .alert("删除事件？", isPresented: $confirmDelete) {
                 Button("取消", role: .cancel) { }
                 Button("删除", role: .destructive) {
-                    if let original = session.original, store.delete(original) { dismiss() } else { saveError = store.errorMessage }
+                    if let original = savedBaseline, store.delete(original) { dismiss() } else { saveError = store.errorMessage }
                 }
             } message: { Text(L10n.format("删除「%@」后可从回收站恢复。", event.title)) }
     }
@@ -112,6 +131,14 @@ struct EventEditor: View {
         Form {
             Section("事件信息") {
                 TextField("名称", text: $event.title).focused($nameFocused).accessibilityLabel("事件名称")
+                if saveCategory != nil {
+                    Picker(L10n.text("列表"), selection: $selectedListID) {
+                        Text(L10n.text("无列表")).tag(nil as UUID?)
+                        ForEach(lists.filter { $0.kind == .ordinary }) { list in
+                            Text(ListHierarchy.path(for: list, in: lists)).tag(Optional(list.id))
+                        }
+                    }
+                }
             }
             Section("日期") {
                 DatePicker("日期", selection: $event.targetDate, displayedComponents: .date)
@@ -185,9 +212,18 @@ struct EventEditor: View {
     }
     private var displayPage: some View {
         Form {
+            Section(L10n.text("到期后")) {
+                Picker(L10n.text("处理方式"), selection: $event.afterDate) {
+                    ForEach(EventAfterDate.allCases, id: \.self) { action in
+                        Text(action.label).tag(action)
+                    }
+                }.disabled(event.repeatYearly)
+                Text(L10n.text(event.repeatYearly ? "每年重复的事件会保留，不会自动移入回收站。" : event.afterDate == .keep ? "保留原日期，继续显示已经过的天数或周年。" : "到期后移入回收站，可随时恢复；全天事件在当天结束后处理。"))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("计数方式") {
                 Picker("计日格式", selection: $event.displayFormat) {
-                    ForEach(EventDisplayFormat.allCases.filter { $0 != .anniversary || event.repeatYearly }, id: \.self) { format in
+                    ForEach(EventDisplayFormat.allCases, id: \.self) { format in
                         Text(format.label).tag(format)
                     }
                 }

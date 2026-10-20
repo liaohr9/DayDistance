@@ -22,36 +22,37 @@ struct SidebarView: View {
     let smartLists: [SmartList]
     let canManage: Bool
     let canRecover: Bool
-    let createSmartList: () -> Void
+    let createNode: (ListKind, UUID?) -> Void
     let editSmartList: (SmartList) -> Void
     let copySmartList: (SmartList) -> Void
     let deleteSmartList: (SmartList) -> Void
+    let moveNode: (SmartList, UUID?) -> Void
     let showSmartBackups: () -> Void
     var body: some View {
         let counts = counts(at: now)
         List(selection: sidebarSelection) {
-          ForEach(EventFilter.allCases) { filter in
-            HStack {
-                Label(filter.label, systemImage: filter.symbol)
-                Spacer()
-                Text("\(counts[filter, default: 0])")
-                    .monospacedDigit().foregroundStyle(.secondary)
-            }.tag(SidebarSelection.category(filter))
-          }
-          Section {
-            ForEach(smartLists) { list in
-                HStack { Label(list.name, systemImage: "line.3.horizontal.decrease.circle"); Spacer(); Text("\(list.evaluate(events: events, now: now).events.count)").monospacedDigit().foregroundStyle(.secondary) }
-                .tag(SidebarSelection.smart(list.id))
-                .contextMenu {
-                    Button(L10n.text("编辑智能列表")) { editSmartList(list) }.disabled(!canManage)
-                    Button(L10n.text("复制智能列表")) { copySmartList(list) }.disabled(!canManage)
-                    Button(L10n.text("删除智能列表"), role: .destructive) { deleteSmartList(list) }.disabled(!canManage)
-                }
+            ForEach(EventFilter.allCases) { filter in
+                HStack {
+                    Label(filter.label, systemImage: filter.symbol)
+                    Spacer()
+                    Text("\(counts[filter, default: 0])").monospacedDigit().foregroundStyle(.secondary)
+                }.tag(SidebarSelection.category(filter))
             }
-            Button(action: showSmartBackups) { Label(L10n.text("智能列表备份"), systemImage: "clock.arrow.circlepath") }.buttonStyle(.plain).disabled(!canRecover)
-          } header: {
-            HStack { Text(L10n.text("智能列表")); Spacer(); Button(action: createSmartList) { Image(systemName: "plus") }.buttonStyle(.borderless).disabled(!canManage).accessibilityLabel(L10n.text("新建智能列表")) }.accessibilityElement(children: .contain)
-          }
+            Section {
+                ForEach(smartLists.filter { $0.parentID == nil }) { list in
+                    SidebarTreeNode(list: list, lists: smartLists, events: events, now: now,
+                        canManage: canManage, create: createNode, edit: editSmartList,
+                        copy: copySmartList, delete: deleteSmartList, move: moveNode)
+                }
+            } header: {
+                HStack {
+                    Text(L10n.text("列表"))
+                    Spacer()
+                    SidebarAddMenu(canManage: canManage, canRecover: canRecover,
+                        create: { createNode($0, nil) }, recover: showSmartBackups)
+                        .frame(width: 22, height: 22)
+                }.accessibilityElement(children: .contain)
+            }
         }.listStyle(.sidebar)
     }
     private var sidebarSelection: Binding<SidebarSelection?> {
@@ -75,5 +76,118 @@ struct SidebarView: View {
             }
         }
         return result
+    }
+}
+
+private struct SidebarTreeNode: View {
+    let list: SmartList
+    let lists: [SmartList]
+    let events: [CountdownEvent]
+    let now: Date
+    let canManage: Bool
+    let create: (ListKind, UUID?) -> Void
+    let edit: (SmartList) -> Void
+    let copy: (SmartList) -> Void
+    let delete: (SmartList) -> Void
+    let move: (SmartList, UUID?) -> Void
+    @State private var expanded = true
+    var body: some View {
+        Group {
+            if list.kind == .folder {
+                DisclosureGroup(isExpanded: $expanded) {
+                    ForEach(lists.filter { $0.parentID == list.id }) { child in
+                        SidebarTreeNode(list: child, lists: lists, events: events, now: now, canManage: canManage,
+                            create: create, edit: edit, copy: copy, delete: delete, move: move)
+                    }
+                } label: { row }
+            } else { row }
+        }
+        .tag(SidebarSelection.smart(list.id))
+    }
+    @ViewBuilder private var nodeMenu: some View {
+            if list.kind == .folder {
+                Button(L10n.text("新建列表")) { create(.ordinary, list.id) }
+                Button(L10n.text("新建智能列表")) { create(.smart, list.id) }
+                Button(L10n.text("新建文件夹")) { create(.folder, list.id) }
+                Divider()
+            }
+            Button(L10n.text(list.kind == .smart ? "编辑智能列表" : "重命名与位置…")) { edit(list) }
+            Menu(L10n.text("移到文件夹")) {
+                Button(L10n.text("最外层")) { move(list, nil) }.disabled(list.parentID == nil)
+                let excluded = ListHierarchy.descendants(of: list.id, in: lists)
+                ForEach(lists.filter { $0.kind == .folder && !excluded.contains($0.id) }) { folder in
+                    Button(ListHierarchy.path(for: folder, in: lists)) { move(list, folder.id) }.disabled(list.parentID == folder.id)
+                }
+            }
+            if list.kind == .smart { Button(L10n.text("复制智能列表")) { copy(list) } }
+            Divider()
+            Button(L10n.text(list.kind == .folder ? "删除文件夹…" : "删除列表…"), role: .destructive) { delete(list) }
+    }
+    private var row: some View {
+        HStack {
+            Label(list.name, systemImage: list.symbol).lineLimit(1)
+            Spacer(minLength: 4)
+            if list.kind != .folder {
+                Text("\(list.evaluate(events: events, now: now).events.count)")
+                    .monospacedDigit().foregroundStyle(.secondary)
+            }
+        }.help(ListHierarchy.path(for: list, in: lists))
+            .contextMenu { nodeMenu.disabled(!canManage) }
+    }
+}
+
+
+/// A native menu button keeps the section-header hit target and accessibility action
+/// independent of the List row. No disclosure arrow or footer control is needed.
+private struct SidebarAddMenu: NSViewRepresentable {
+    let canManage: Bool
+    let canRecover: Bool
+    let create: (ListKind) -> Void
+    let recover: () -> Void
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeNSView(context: Context) -> NSPopUpButton {
+        let button = NSPopUpButton(frame: .zero, pullsDown: true)
+        button.isBordered = false
+        button.imagePosition = .imageOnly
+        (button.cell as? NSPopUpButtonCell)?.arrowPosition = .noArrow
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        let label = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        label.image = NSImage(systemSymbolName: "plus", accessibilityDescription: nil)
+        menu.addItem(label)
+        for index in 0..<4 {
+            if index == 3 { menu.addItem(.separator()) }
+            let item = NSMenuItem(title: "", action: #selector(Coordinator.choose(_:)), keyEquivalent: "")
+            item.tag = index; item.target = context.coordinator
+            menu.addItem(item)
+        }
+        button.menu = menu
+        return button
+    }
+    func updateNSView(_ button: NSPopUpButton, context: Context) {
+        context.coordinator.create = create
+        context.coordinator.recover = recover
+        button.isEnabled = canManage || canRecover
+        button.setAccessibilityLabel(L10n.text("添加列表或文件夹"))
+        button.toolTip = L10n.text("添加列表或文件夹")
+        let titles = ["新建列表", "新建智能列表", "新建文件夹", "列表备份…"]
+        for item in button.menu?.items.dropFirst() ?? [] where !item.isSeparatorItem {
+            item.title = L10n.text(titles[item.tag])
+            item.isEnabled = item.tag == 3 ? canRecover : canManage
+        }
+    }
+    final class Coordinator: NSObject {
+        var create: ((ListKind) -> Void)?
+        var recover: (() -> Void)?
+        @objc func choose(_ item: NSMenuItem) {
+            guard item.isEnabled else { return }
+            switch item.tag {
+            case 0: create?(.ordinary)
+            case 1: create?(.smart)
+            case 2: create?(.folder)
+            case 3: recover?()
+            default: break
+            }
+        }
     }
 }

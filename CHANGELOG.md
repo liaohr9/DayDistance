@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.17.0 — lists, expiry and original-date memories
+
+- Add regular lists and nested folders, with a single sidebar creation menu and one-list event membership.
+- Add a Display-page after-date action: preserve the original date or move one-time events to recoverable Trash. Nonannual memories may use anniversary formatting.
+- Show Remaining HH:mm for today’s upcoming timed widget events, retaining existing display options.
+- Fix normal GUI opening while an MCP listener is running; reconnect older listeners after updating.
+- Stop reminders beyond one-time expiry; preserve drafts and backups, disarm cleanup on recovery, and support afterDate in CLI/JSON/MCP.
+- Read legacy data; new event/list schemas protect against unsafe older writers. This remains an unnotarized Apple Silicon preview.
+
 ## 1.15.0 — local agent automation
 
 - Add a JSON CLI and ten MCP tools in the native app, with default-off read/write access.

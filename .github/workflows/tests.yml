@@ -23,6 +23,14 @@ jobs:
         run: zsh Tests/Fixtures/Reminders/test.sh
       - name: Settings routing and modal guards
         run: python3 script/test_settings.py
+      - name: Batch lifecycle and expiration
+        run: zsh script/test_batch.sh
+      - name: Lists, hierarchy and membership storage
+        run: python3 script/test_smart_list_store.py
+      - name: Widget sources and date-based selection
+        run: |
+          python3 script/test_widget_intent.py
+          python3 script/test_widget_smart_lists.py
       - name: Release catalog and update descriptions
         run: python3 script/test_release_notes.py
       - name: Widget registration lifecycle

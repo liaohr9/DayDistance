@@ -24,6 +24,11 @@ struct EventActions {
     let exportEvents: () -> Void
     let searchEvents: () -> Void
 }
+private struct ExpirationTaskKey: Hashable {
+    let date: Date?
+    let allowed: Bool
+    let calendarReference: Date
+}
 private struct EventActionsKey: FocusedValueKey { typealias Value = EventActions }
 extension FocusedValues {
     var eventActions: EventActions? {
@@ -76,6 +81,18 @@ struct ContentView: View {
 
     var body: some View {
         eventMonitoringContent
+        .task(id: ExpirationTaskKey(date: store.nextAutomaticTrashDate, allowed: store.canManageData, calendarReference: calendarReference)) {
+            guard store.canManageData else { return }
+            while !Task.isCancelled, let next = store.nextAutomaticTrashDate {
+                do {
+                    let delay = next.timeIntervalSinceNow
+                    if delay > 0 { try await Task.sleep(for: .seconds(min(delay, 86400))) }
+                    else if !store.reconcileExpiredEvents() { try await Task.sleep(for: .seconds(60)) }
+                } catch { return }
+            }
+        }
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)) { _ in calendarReference = Date() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in calendarReference = Date() }
         .onOpenURL { url in
             guard !isPresentingModal else { return }
             smartSelection = nil
@@ -85,7 +102,13 @@ struct ContentView: View {
             selectedIDs = store.editingEvent.map { [$0.event.id] } ?? []
         }
         .sheet(item: $store.editingEvent) { session in
-            EventEditor(session: session, store: store).appLanguage()
+            EventEditor(session: session, store: store,
+                lists: smartStore.isLoaded ? smartStore.lists : [],
+                initialListID: smartStore.containingList(for: session.event.id) ?? (session.original == nil ? currentOrdinaryListID : nil),
+                currentListID: smartStore.containingList(for: session.event.id),
+                saveCategory: { id, expected, target in
+                    smartStore.assign(id, from: expected, to: target) ? nil : (smartStore.errorMessage ?? EventError.changedData.localizedDescription)
+                }).appLanguage()
         }
         .alert(deletingPermanently ? L10n.text("永久删除所选事件？") : L10n.text("删除事件？"), isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
             Button("取消", role: .cancel) { pendingDelete = nil }
@@ -116,10 +139,10 @@ struct ContentView: View {
         .onChange(of: smartStore.lists) { selectedIDs.formIntersection(Set(visibleEvents(now: Date()).map(\.id))) }
         .sheet(isPresented: Binding(get: { smartStore.draft != nil }, set: { if !$0 { smartStore.cancel() } })) { SmartListEditor(store: smartStore, events: store.events).appLanguage() }
         .sheet(isPresented: $smartStore.isShowingBackups) { SmartListBackupsView(store: smartStore).appLanguage() }
-        .alert(L10n.text("删除智能列表？"), isPresented: Binding(get: { smartStore.pendingDelete != nil }, set: { if !$0 { smartStore.pendingDelete = nil } })) {
+        .alert(L10n.text(smartStore.pendingDelete?.kind == .folder ? "删除文件夹？" : "删除列表？"), isPresented: Binding(get: { smartStore.pendingDelete != nil }, set: { if !$0 { smartStore.pendingDelete = nil } })) {
             Button(L10n.text("取消"), role: .cancel) { smartStore.pendingDelete = nil }
             Button(L10n.text("删除"), role: .destructive) { _ = smartStore.confirmDelete() }
-        } message: { Text(L10n.text("事件保持不变；使用此列表的小组件会提示列表不存在。")) }
+        } message: { Text(L10n.text(smartStore.pendingDelete?.kind == .folder ? "只删除文件夹，里面的列表和子文件夹移到上一级。所有事件保留。" : "只删除列表，所有事件保留。使用此列表的小组件需要重新选择列表。")) }
         .onChange(of: shareEvent) { updateHistoryModal() }
         .sheet(item: $shareEvent) { event in EventShareView(event: event, now: Date(), store: store).appLanguage() }
         .onChange(of: pendingDelete) { updateHistoryModal() }
@@ -158,7 +181,7 @@ struct ContentView: View {
             if let cursor = vimNavigation.cursor, !store.events.contains(where: { $0.id == cursor }) { vimNavigation = VimListNavigation() }
         }
         .onChange(of: store.editingEvent?.id) {
-            if let session = store.editingEvent, session.original == nil { smartSelection = nil; filter = EventFilter.all; search = "" }
+            if let session = store.editingEvent, session.original == nil { if currentOrdinaryListID == nil { smartSelection = nil; filter = EventFilter.all }; search = "" }
         }
         .onChange(of: filter) { clearSelection() }
         .onChange(of: search) { clearSelection() }
@@ -175,20 +198,21 @@ struct ContentView: View {
         // every second dismisses an open menu before a user can select an item.
         NavigationSplitView {
             TimelineView(EventTimelineSchedule(events: store.events, paused: isPresentingModal, referenceDate: calendarReference)) { context in
-                SidebarView(selection: $filter, events: store.events, now: context.date, smartSelection: $smartSelection, smartLists: smartStore.isLoaded ? smartStore.lists : [], canManage: store.isLoaded && smartStore.isLoaded && !isPresentingModal, canRecover: store.isLoaded && !isPresentingModal, createSmartList: { smartStore.begin() }, editSmartList: { smartStore.begin($0) }, copySmartList: { smartStore.begin($0, copy: true) }, deleteSmartList: { smartStore.pendingDelete = $0 }, showSmartBackups: { smartStore.isShowingBackups = true })
+                SidebarView(selection: $filter, events: store.events, now: context.date, smartSelection: $smartSelection, smartLists: smartStore.isLoaded ? smartStore.lists : [], canManage: store.isLoaded && smartStore.isLoaded && !isPresentingModal, canRecover: store.isLoaded && !isPresentingModal, createNode: { kind, parent in smartStore.begin(kind: kind, parentID: parent) }, editSmartList: { smartStore.begin($0) }, copySmartList: { smartStore.begin($0, copy: true) }, deleteSmartList: { smartStore.pendingDelete = $0 }, moveNode: { _ = smartStore.move($0, to: $1) }, showSmartBackups: { smartStore.isShowingBackups = true })
                     .disabled(isPresentingModal)
             }
-            .navigationSplitViewColumnWidth(min: 160, ideal: 180, max: 220)
+            .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 320)
         } detail: {
             TimelineView(EventTimelineSchedule(events: store.events, paused: isPresentingModal, referenceDate: calendarReference,
-                smartList: smartStore.isLoaded ? smartStore.lists.first(where: { $0.id == smartSelection }) : nil)) { context in
+                smartList: smartStore.isLoaded ? smartStore.lists.first(where: { $0.id == smartSelection }) : nil,
+                relatedSmartLists: selectedFolderSmartLists)) { context in
                 detail(now: context.date)
             }
         }
-        .navigationTitle(smartSelection == nil ? (filter?.label ?? EventFilter.all.label) : (smartStore.lists.first { $0.id == smartSelection }?.name ?? L10n.text("智能列表不存在")))
+        .navigationTitle(smartSelection == nil ? (filter?.label ?? EventFilter.all.label) : (smartStore.lists.first { $0.id == smartSelection }?.name ?? L10n.text("列表不存在")))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                NativeEventSortMenu(selection: $sortOrder, isEnabled: !isPresentingModal && smartSelection == nil)
+                NativeEventSortMenu(selection: $sortOrder, isEnabled: !isPresentingModal && (smartSelection == nil || smartStore.lists.first(where: { $0.id == smartSelection })?.kind != .smart))
                     .frame(width: 44, height: 28)
             }
             ToolbarItem(placement: .primaryAction) {
@@ -242,9 +266,9 @@ struct ContentView: View {
                 HStack { Text(error).foregroundStyle(.red); Spacer(); Button(L10n.text("重试")) { smartStore.reload() } }.padding(12)
             }
             if smartSelection != nil && !smartStore.isLoaded {
-                ContentUnavailableView(L10n.text("无法读取智能列表"), systemImage: "externaldrive.badge.exclamationmark", description: Text(smartStore.errorMessage ?? ""))
+                ContentUnavailableView(L10n.text("无法读取列表"), systemImage: "externaldrive.badge.exclamationmark", description: Text(smartStore.errorMessage ?? ""))
             } else if smartSelection != nil && !smartStore.lists.contains(where: { $0.id == smartSelection }) {
-                ContentUnavailableView(L10n.text("智能列表不存在"), systemImage: "line.3.horizontal.decrease.circle", description: Text(L10n.text("请在侧栏选择其他列表，或从智能列表备份恢复。")))
+                ContentUnavailableView(L10n.text("列表不存在"), systemImage: "line.3.horizontal.decrease.circle", description: Text(L10n.text("请在侧栏选择其他列表，或从列表备份恢复。")))
             } else if !store.isLoaded {
                 ContentUnavailableView {
                     Label("无法读取事件", systemImage: "externaldrive.badge.exclamationmark")
@@ -301,6 +325,17 @@ struct ContentView: View {
                             Divider()
                         }
                         if !events.isEmpty {
+                            if events.allSatisfy({ $0.lifecycle != .trashed }) {
+                                Menu(L10n.text("移到列表")) {
+                                    Button(L10n.text("无列表")) { _ = smartStore.assign(Set(events.map(\.id)), to: nil) }
+                                    ForEach(smartStore.lists.filter { $0.kind == .ordinary }) { list in
+                                        Button(ListHierarchy.path(for: list, in: smartStore.lists)) {
+                                            _ = smartStore.assign(Set(events.map(\.id)), to: list.id)
+                                        }
+                                    }
+                                }.disabled(!smartStore.isLoaded)
+                                Divider()
+                            }
                             if events.allSatisfy({ $0.lifecycle == .trashed }) {
                                 Button("恢复", systemImage: "arrow.uturn.backward") { _ = store.batch(.recover, events: events) }
                                 Button("永久删除", systemImage: "trash", role: .destructive) { pendingDelete = events }
@@ -344,12 +379,22 @@ struct ContentView: View {
         let source: [CountdownEvent]
         if let id = smartSelection {
             guard smartStore.isLoaded else { return [] }
-            source = smartStore.lists.first(where: { $0.id == id })?.evaluate(events: store.events, now: now).events ?? []
+            let members = ListHierarchy.events(in: id, lists: smartStore.lists, events: store.events, now: now)
+            source = smartStore.lists.first(where: { $0.id == id })?.kind == .smart ? members : WidgetPolicy.sorted(events: members, now: now, order: sortOrder)
         } else {
             source = WidgetPolicy.sorted(events: store.events, now: now, order: sortOrder, includingInactive: true).filter { (filter ?? .all).accepts($0, now: now) }
         }
         return source.filter { (search.isEmpty || $0.title.localizedCaseInsensitiveContains(search) || $0.tags.contains(where: { $0.localizedCaseInsensitiveContains(search) }))
         }
+    }
+    private var selectedFolderSmartLists: [SmartList] {
+        guard smartStore.isLoaded, let id = smartSelection,
+              smartStore.lists.first(where: { $0.id == id })?.kind == .folder else { return [] }
+        let descendants = ListHierarchy.descendants(of: id, in: smartStore.lists)
+        return smartStore.lists.filter { $0.kind == .smart && descendants.contains($0.id) }
+    }
+    private var currentOrdinaryListID: UUID? {
+        smartStore.lists.first { $0.id == smartSelection && $0.kind == .ordinary }?.id
     }
     private func clearSelection() { keyboardSelection = nil; selectedIDs = []; vimNavigation = VimListNavigation(); vimSequence.reset() }
     private func moveSelection(_ step: Int, visible: [CountdownEvent]) {

@@ -35,7 +35,7 @@ enum ReminderPolicy {
         calendar.timeZone = timeZone
         var candidates: [PlannedEventReminder] = []
         var pastEventCount = 0
-        let enabled = events.filter { $0.isActive && $0.hasEnabledReminders }
+        let enabled = events.filter { $0.isVisible(at: now, timeZone: timeZone) && $0.hasEnabledReminders }
         for event in enabled { candidates += recurringRequests(event: event, now: now, calendar: calendar, limit: recurringLimit) }
         for event in enabled where event.reminder != .none {
             var cursor = now
@@ -73,6 +73,10 @@ enum ReminderPolicy {
             }
             if futureCount == 0 { pastEventCount += 1 }
         }
+        let expirations = Dictionary(uniqueKeysWithValues: enabled.compactMap { event in
+            event.automaticTrashDate(timeZone: timeZone).map { (event.id, $0) }
+        })
+        candidates.removeAll { request in expirations[request.eventID].map { request.fireDate > $0 } ?? false }
         candidates.sort {
             if $0.fireDate != $1.fireDate { return $0.fireDate < $1.fireDate }
             return $0.identifier < $1.identifier

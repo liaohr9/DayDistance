@@ -164,8 +164,8 @@ import OSLog
     ).response
   }
   static func launch(arguments: [String]) {
-    let app = NSApplication.shared
-    app.setActivationPolicy(.prohibited)
+    // CLI/MCP must not become an NSApplication with the GUI bundle identity:
+    // LaunchServices would route Finder/Spotlight reopening back to this headless process.
     // CLI/MCP stdout belongs exclusively to the protocol; AppKit logs go to stderr.
     L10n.useLanguage(SharedContainer.appliedLanguage())
     Task { @MainActor in
@@ -196,7 +196,7 @@ import OSLog
         exit(64)
       }
     }
-    app.run()
+    RunLoop.main.run()
   }
   static func exitCode(_ response: JSONValue) -> Int32 {
     if response.object?["ok"] == .bool(true) { return 0 }

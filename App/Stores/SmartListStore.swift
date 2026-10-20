@@ -19,11 +19,11 @@ final class SmartListStore {
         do { lists = try repository.load(); isLoaded = true; errorMessage = nil }
         catch { isLoaded = false; errorMessage = error.localizedDescription }
     }
-    func begin(_ list: SmartList? = nil, copy: Bool = false) {
+    func begin(_ list: SmartList? = nil, copy: Bool = false, kind: ListKind = .smart, parentID: UUID? = nil) {
         guard isLoaded, !isPresentingModal else { return }
         original = copy ? nil : list
-        var value = list ?? SmartList(name: L10n.text("新智能列表"))
-        if copy { value.id = UUID(); value.name = L10n.format("%@ 副本", value.name) }
+        var value = list ?? SmartList(name: L10n.text(kind == .folder ? "新文件夹" : kind == .ordinary ? "新列表" : "新智能列表"), kind: kind, parentID: parentID)
+        if copy { value.eventIDs = []; value.id = UUID(); value.name = L10n.format("%@ 副本", value.name) }
         draft = value
     }
     func cancel() { draft = nil; original = nil }
@@ -45,8 +45,28 @@ final class SmartListStore {
     }
     @discardableResult func confirmDelete() -> Bool {
         guard let expected = pendingDelete, lists.contains(expected) else { errorMessage = EventError.changedData.localizedDescription; return false }
-        if persist(lists.filter { $0.id != expected.id }) { pendingDelete = nil; return true }
+        if persist(ListHierarchy.removing(expected.id, from: lists)) { pendingDelete = nil; return true }
         return false
+    }
+    func containingList(for eventID: UUID) -> UUID? {
+        lists.first(where: { $0.kind == .ordinary && $0.eventIDs.contains(eventID) })?.id
+    }
+    @discardableResult func assign(_ ids: Set<UUID>, to target: UUID?) -> Bool {
+        guard isLoaded, !isPresentingModal else { return false }
+        do { return persist(try ListHierarchy.assigning(ids, to: target, in: lists)) }
+        catch { errorMessage = error.localizedDescription; return false }
+    }
+    /// Compare membership separately from the event CAS; another window may have moved it.
+    @discardableResult func assign(_ eventID: UUID, from expected: UUID?, to target: UUID?) -> Bool {
+        guard isLoaded, containingList(for: eventID) == expected else {
+            errorMessage = EventError.changedData.localizedDescription; return false
+        }
+        return assign([eventID], to: target)
+    }
+    @discardableResult func move(_ list: SmartList, to parent: UUID?) -> Bool {
+        guard isLoaded, !isPresentingModal else { return false }
+        var value = list; value.parentID = parent
+        return upsert(value, replacing: list)
     }
     func backups() throws -> [SmartListBackup] { try repositoryProvider()?.backups() ?? [] }
     func recoveryFingerprint() -> String? {

@@ -37,6 +37,37 @@ import Foundation
         precondition(store.batch(.permanentlyDelete, events: trash))
         precondition(store.events.isEmpty)
         store.eventUndoManager.undo(); precondition(store.events == trash)
+        // One-shot expiry uses one CAS save, preserves drafts, and recovery disarms
+        // the automatic policy so that an event can be rescheduled safely.
+        let expiryRoot = root.appendingPathComponent("expiry")
+        let expiryRepo = EventRepository(fileURL: expiryRoot.appendingPathComponent("events.json"))
+        let now = Date()
+        var once = CountdownEvent(title: "Disposable", targetDate: now.addingTimeInterval(60))
+        once.afterDate = .trash
+        let memory = CountdownEvent(title: "Memory", targetDate: now.addingTimeInterval(-86400))
+        try expiryRepo.save([once, memory], replacing: [])
+        let expiryStore = EventStore(repository: expiryRepo)
+        let end = now.addingTimeInterval(61)
+        expiryStore.edit(once)
+        precondition(!expiryStore.reconcileExpiredEvents(now: end))
+        precondition(expiryStore.events == [once, memory])
+        expiryStore.editingEvent = nil
+        precondition(expiryStore.reconcileExpiredEvents(now: end))
+        precondition(expiryStore.events[0].lifecycle == .trashed && expiryStore.events[1] == memory)
+        let moved = expiryStore.events[0]
+        precondition(expiryStore.reconcileExpiredEvents(now: end.addingTimeInterval(1)))
+        precondition(expiryStore.events[0] == moved)
+        precondition(expiryStore.recover(moved))
+        precondition(expiryStore.events[0].isActive && expiryStore.events[0].afterDate == .keep)
+        precondition(expiryStore.reconcileExpiredEvents(now: end.addingTimeInterval(100)))
+        precondition(expiryStore.events[0].isActive)
+        var overdue = once; overdue.targetDate = now.addingTimeInterval(-60)
+        try expiryRepo.save([overdue, memory], replacing: try expiryRepo.load())
+        let cold = EventStore(repository: expiryRepo)
+        precondition(cold.events[0].lifecycle == .trashed && cold.events[1] == memory)
+        let expiryBackups = try cold.listBackups()
+        precondition(!expiryBackups.isEmpty)
+        print("Expiry: draft deferral/CAS/persistence/idempotence/recovery/cold-load/backup PASS")
         print("Atomic batch/undo/redo/recovery/CAS/modal/duplicate checks passed")
     }
 }

@@ -59,7 +59,7 @@ struct EventRepository: Sendable {
         decoder.dateDecodingStrategy = .deferredToDate
         // Reject future envelopes before interpreting their event fields.
         let schema = try decoder.decode(Schema.self, from: data)
-        guard (1...7).contains(schema.schemaVersion) else { throw EventError.unsupportedVersion }
+        guard (1...8).contains(schema.schemaVersion) else { throw EventError.unsupportedVersion }
         let envelope = try decoder.decode(Envelope.self, from: data)
         guard Set(envelope.events.map(\.id)).count == envelope.events.count else { throw EventError.duplicateID }
         for event in envelope.events { _ = try event.validated(now: event.updatedAt) }
@@ -111,6 +111,6 @@ struct EventRepository: Sendable {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .deferredToDate
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try encoder.encode(Envelope(schemaVersion: 7, events: events))
+        return try encoder.encode(Envelope(schemaVersion: 8, events: events))
     }
 }

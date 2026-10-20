@@ -2,6 +2,13 @@ import Foundation
 
 @main struct SmartListStoreProbe {
     @MainActor static func main() throws {
+        let reference = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date())!
+        let early = CountdownEvent(title: "Past", targetDate: reference.addingTimeInterval(-1000))
+        let later = CountdownEvent(title: "Future", targetDate: reference.addingTimeInterval(3000))
+        let nearest = SmartList(name: "Skipped nearest", skip: 1)
+        let schedule = EventTimelineSchedule(events: [early,later], relatedSmartLists: [nearest])
+        let dates = Array(schedule.entries(from: reference, mode: .normal).prefix(2))
+        precondition(dates.count == 2 && abs(dates[1].timeIntervalSince(reference) - 1000.001) < 0.01)
         let root = URL(fileURLWithPath: CommandLine.arguments[1])
         let repo = SmartListRepository(fileURL: root.appendingPathComponent("smart-lists.json"))
         let store = SmartListStore(repositoryProvider: { repo })
@@ -23,6 +30,21 @@ import Foundation
         store.pendingDelete = store.lists[0]; precondition(store.confirmDelete() && store.lists.isEmpty)
         precondition(store.restore(backups[0]) && !store.lists.isEmpty)
         let loaded = try repo.load(); precondition(loaded == store.lists)
+        let folder = SmartList(name: "School", kind: .folder)
+        precondition(store.upsert(folder, replacing: nil))
+        let child = SmartList(name: "Homework", kind: .ordinary, parentID: folder.id)
+        precondition(store.upsert(child, replacing: nil))
+        let eventID = UUID()
+        precondition(store.assign([eventID], to: child.id))
+        precondition(store.containingList(for: eventID) == child.id)
+        precondition(!store.assign(eventID, from: nil, to: nil))
+        precondition(!store.move(folder, to: folder.id))
+        store.pendingDelete = folder
+        precondition(store.confirmDelete())
+        precondition(store.lists.first(where: { $0.id == child.id })?.parentID == nil)
+        precondition(store.containingList(for: eventID) == child.id)
+        precondition(store.assign(eventID, from: child.id, to: nil))
+        precondition(store.containingList(for: eventID) == nil)
         let eventRepo = EventRepository(fileURL: root.appendingPathComponent("events.json"))
         let eventStore = EventStore(repository: eventRepo)
         precondition(eventStore.smartListRepository()?.fileURL == repo.fileURL)

@@ -71,6 +71,7 @@ struct EventTimelineSchedule: TimelineSchedule {
     var includeClock = false
     var referenceDate = Date.distantPast
     var smartList: SmartList? = nil
+    var relatedSmartLists: [SmartList] = []
     func entries(from startDate: Date, mode: TimelineScheduleMode) -> AnySequence<Date> {
         AnySequence {
             var next: Date? = startDate
@@ -79,7 +80,8 @@ struct EventTimelineSchedule: TimelineSchedule {
                 if paused { next = nil }
                 else {
                     let standard = EventRefreshPolicy.nextUpdate(events: events, after: date, includeClock: includeClock)
-                    next = min(standard, smartList?.nextUpdate(events: events, after: date) ?? standard)
+                    let lists = relatedSmartLists + (smartList.map { [$0] } ?? [])
+                    next = lists.reduce(standard) { min($0, $1.nextUpdate(events: events, after: date)) }
                 }
                 return date
             }

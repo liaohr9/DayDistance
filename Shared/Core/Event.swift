@@ -1,5 +1,10 @@
 import Foundation
 
+enum EventAfterDate: String, Codable, CaseIterable, Sendable {
+    case keep, trash
+    var label: String { L10n.text(self == .keep ? "保留为纪念日" : "移入回收站") }
+}
+
 enum EventLifecycle: String, Codable, Sendable { case active, archived, trashed }
 
 enum EventDisplayFormat: String, Codable, CaseIterable, Sendable {
@@ -39,6 +44,7 @@ struct CountdownEvent: Codable, Identifiable, Equatable, Sendable {
     var yearlyReminderTime: CalendarTime?
     var hasEnabledReminders: Bool { reminder != .none || hasRecurringReminders }
     var hasRecurringReminders: Bool { dailyReminderTime != nil || monthlyReminderTime != nil || yearlyReminderTime != nil }
+    var afterDate = EventAfterDate.keep
     var lifecycle: EventLifecycle
     var trashedAt: Date?
     var wasArchivedBeforeTrash: Bool
@@ -64,7 +70,7 @@ struct CountdownEvent: Codable, Identifiable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case reminderDaysBefore, reminderTime, dailyReminderTime, monthlyReminderTime, yearlyReminderTime
-        case tags, id, title, targetDate, includesStartDay, displayFormat, isAllDay, calendarDay, annualTime, repeatYearly, isPinned, reminder, lifecycle, trashedAt, wasArchivedBeforeTrash, symbol, colorKey, createdAt, updatedAt
+        case afterDate, tags, id, title, targetDate, includesStartDay, displayFormat, isAllDay, calendarDay, annualTime, repeatYearly, isPinned, reminder, lifecycle, trashedAt, wasArchivedBeforeTrash, symbol, colorKey, createdAt, updatedAt
     }
 
     init(from decoder: Decoder) throws {
@@ -83,6 +89,7 @@ struct CountdownEvent: Codable, Identifiable, Equatable, Sendable {
         dailyReminderTime = try values.decodeIfPresent(CalendarTime.self, forKey: .dailyReminderTime)
         monthlyReminderTime = try values.decodeIfPresent(CalendarTime.self, forKey: .monthlyReminderTime)
         yearlyReminderTime = try values.decodeIfPresent(CalendarTime.self, forKey: .yearlyReminderTime)
+        afterDate = try values.decodeIfPresent(EventAfterDate.self, forKey: .afterDate) ?? .keep
         lifecycle = try values.decodeIfPresent(EventLifecycle.self, forKey: .lifecycle) ?? .active
         trashedAt = try values.decodeIfPresent(Date.self, forKey: .trashedAt)
         wasArchivedBeforeTrash = try values.decodeIfPresent(Bool.self, forKey: .wasArchivedBeforeTrash) ?? false
@@ -93,6 +100,27 @@ struct CountdownEvent: Codable, Identifiable, Equatable, Sendable {
         tags = try values.decodeIfPresent([String].self, forKey: .tags) ?? []
         createdAt = try values.decode(Date.self, forKey: .createdAt)
         updatedAt = try values.decode(Date.self, forKey: .updatedAt)
+    }
+
+    func automaticTrashDate(timeZone: TimeZone = .autoupdatingCurrent) -> Date? {
+        guard afterDate == .trash, !repeatYearly else { return nil }
+        guard isAllDay else { return targetDate }
+        let calendar = CalendarDay.calendar(timeZone)
+        let start = (calendarDay ?? CalendarDay(date: targetDate, timeZone: timeZone)).date(timeZone: timeZone)
+        return start.flatMap { calendar.date(byAdding: .day, value: 1, to: $0) }
+    }
+    func shouldAutomaticallyTrash(at now: Date, timeZone: TimeZone = .autoupdatingCurrent) -> Bool {
+        isActive && automaticTrashDate(timeZone: timeZone).map { $0 <= now } == true
+    }
+    func isVisible(at now: Date, timeZone: TimeZone = .autoupdatingCurrent) -> Bool {
+        isActive && !shouldAutomaticallyTrash(at: now, timeZone: timeZone)
+    }
+    func automaticallyTrashed(at now: Date, timeZone: TimeZone = .autoupdatingCurrent) -> Self {
+        guard shouldAutomaticallyTrash(at: now, timeZone: timeZone) else { return self }
+        var value = self
+        value.lifecycle = .trashed; value.trashedAt = now
+        value.wasArchivedBeforeTrash = false; value.updatedAt = now
+        return value
     }
 
     static func tagIdentity(_ tag: String) -> String {

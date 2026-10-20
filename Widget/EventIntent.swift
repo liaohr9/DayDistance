@@ -36,7 +36,7 @@ struct SelectEventIntent: WidgetConfigurationIntent {
     var contentSource: WidgetContentSource
     @Parameter(title: LocalizedStringResource("显示内容"), optionsProvider: EventOptionsProvider())
     var eventID: String?
-    @Parameter(title: "智能列表", optionsProvider: SmartListOptionsProvider())
+    @Parameter(title: "列表", optionsProvider: SmartListOptionsProvider())
     var smartListID: String?
     @Parameter(title: LocalizedStringResource("中号手动选择事件"), default: false)
     var manualMediumSelection: Bool
@@ -1980,14 +1980,15 @@ enum WidgetAppearance: String, Codable, CaseIterable, AppEnum {
 enum WidgetContentSource: String, Codable, AppEnum {
     case events, smartList
     static var typeDisplayRepresentation: TypeDisplayRepresentation { "内容来源" }
-    static var caseDisplayRepresentations: [Self: DisplayRepresentation] { [.events: "事件", .smartList: "智能列表"] }
+    static var caseDisplayRepresentations: [Self: DisplayRepresentation] { [.events: "事件", .smartList: "列表"] }
 }
 struct SmartListOptionsProvider: DynamicOptionsProvider {
     func defaultResult() async -> String? { nil }
     func results() async throws -> IntentItemCollection<String> {
-        let items = try SmartListRepository(fileURL: SharedContainer.smartListFileURL()).load().map {
-            IntentItem<String>($0.id.uuidString, title: "\($0.name)")
+        let items = try SmartListRepository(fileURL: SharedContainer.smartListFileURL()).load()
+        let choices = items.filter { $0.kind != .folder }.map {
+            IntentItem<String>($0.id.uuidString, title: "\(ListHierarchy.path(for: $0, in: items))")
         }
-        return IntentItemCollection(sections: [IntentItemSection(items: items)])
+        return IntentItemCollection(sections: [IntentItemSection(items: choices)])
     }
 }

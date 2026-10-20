@@ -691,3 +691,51 @@
 "已安装：%@" = "Installed: %@";
 "安装失败。请选择可写的位置，且不要覆盖其他文件。" = "Installation failed. Choose a writable location and avoid overwriting other files.";
 "无法准备本地数据访问。请重试；现有事件已保留。" = "Local data access could not be prepared. Retry; existing events were preserved.";
+
+"列表设置无效，请检查名称、位置和条件。" = "Invalid list settings. Check its name, location, and rules.";
+"普通列表" = "Regular List";
+"文件夹" = "Folder";
+"新文件夹" = "New Folder";
+"新列表" = "New List";
+"我的列表" = "My Lists";
+"新建列表" = "New List";
+"新建文件夹" = "New Folder";
+"列表备份…" = "List Backups…";
+"添加列表或文件夹" = "Add List or Folder";
+"所在文件夹" = "Folder";
+"最外层" = "Top Level";
+"移到文件夹" = "Move to Folder";
+"重命名与位置…" = "Rename and Location…";
+"删除文件夹…" = "Delete Folder…";
+"删除列表…" = "Delete List…";
+"删除文件夹？" = "Delete Folder?";
+"删除列表？" = "Delete List?";
+"文件夹用于整理列表，也可以包含子文件夹。" = "Organize lists and other folders in this folder.";
+"手动分类事件；每个事件只属于一个普通列表。" = "Organize events manually. Each event belongs to one regular list.";
+"只删除文件夹，里面的列表和子文件夹移到上一级。所有事件保留。" = "Only this folder will be deleted. Its lists and subfolders move up one level. All events are kept.";
+"只删除列表，所有事件保留。使用此列表的小组件需要重新选择列表。" = "Only this list will be deleted. All events are kept. Widgets using it will need another list.";
+"移到列表" = "Move to List";
+"无列表" = "No List";
+"列表" = "List";
+"事件已保存，但列表分类未保存：%@" = "Event saved, but its list could not be saved: %@";
+
+"列表备份" = "List Backups";
+"恢复列表、文件夹和分类归属，不修改事件内容。" = "Restore lists, folders, and event membership without changing event content.";
+"事件导出仅包含事件内容；分类结构保存在列表备份中。" = "Event exports contain event content. Lists, folders, and membership are stored in list backups.";
+"%ld 个列表与文件夹" = "%ld lists and folders";
+"恢复列表备份？" = "Restore List Backup?";
+"当前列表和分类归属会先自动备份。事件内容保持不变。" = "Your current lists and membership will be backed up first. Event content is kept.";
+"列表不存在" = "List Not Found";
+"无法读取列表" = "Unable to Read Lists";
+"请在侧栏选择其他列表，或从列表备份恢复。" = "Choose another list in the sidebar, or restore a list backup.";
+
+"添加列表" = "Add List";
+
+"保留为纪念日" = "Keep as a Memory";
+"移入回收站" = "Move to Trash";
+"到期后" = "After the Date";
+"处理方式" = "Action";
+"每年重复的事件会保留，不会自动移入回收站。" = "Yearly repeating events are kept and never automatically moved to Trash.";
+"保留原日期，继续显示已经过的天数或周年。" = "Keep the original date and count elapsed days or anniversaries.";
+"到期后移入回收站，可随时恢复；全天事件在当天结束后处理。" = "Move to recoverable Trash after the date. All-day events remain until the day ends.";
+"到期移入回收站" = "Move Expired Events to Trash";

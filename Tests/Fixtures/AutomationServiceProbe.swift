@@ -33,6 +33,15 @@ import Foundation
   require((await service.execute(.init(operation:"trash",arguments:["id":id,"revision":rev]))).object?["error"]?.object?["code"] == .string("CONFLICT"),"stale revision rejected")
   let disabled=AutomationService(store:store,permissions:{(false,false)},canUseUI:{true},sync:{nil})
   require((await disabled.execute(.init(operation:"list"))).object?["error"]?.object?["code"] == .string("DISABLED"),"permission gate")
+  let oneShot=AutomationRequest(operation:"create",arguments:["title":.string("Once"),"at":.string("2028-01-01T12:00:00Z"),"afterDate":.string("trash"),"requestId":.string("one-shot")])
+  let oneReply=await service.execute(oneShot)
+  require(oneReply.object?["ok"] == .bool(true),"one-shot creation")
+  require(oneReply.object?["data"]?.object?["event"]?.object?["afterDate"] == .string("trash"),"afterDate in DTO")
+  require((await service.execute(oneShot)).object?["data"]?.object?["replayed"] == .bool(true),"one-shot replay")
+  var keepRequest=oneShot;keepRequest.arguments["afterDate"] = .string("keep")
+  require((await service.execute(keepRequest)).object?["error"]?.object?["code"] == .string("CONFLICT"),"policy differs in replay hash")
+  var badAnnual=oneShot;badAnnual.arguments["requestId"] = .string("annual-once");badAnnual.arguments["repeatYearly"] = .bool(true)
+  require((await service.execute(badAnnual)).object?["error"]?.object?["code"] == .string("INVALID_ARGUMENT"),"annual one-shot conflict rejected")
   print("AUTOMATION_SERVICE_PASS: create/replay/restart/conflict/draft/revision/permission")
  }
  static func require(_ value:Bool,_ message:String) { if !value {fatalError(message)} }

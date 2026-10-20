@@ -12,6 +12,8 @@ struct WidgetDisplayUIProbe: App {
 
 struct WidgetDisplayProbeView: View {
     @State private var options = WidgetDisplayOptions()
+    @State private var todayTimed = true
+    @State private var minutesLater = 0
     @State private var inactive = false
     @State private var manual = false
     @State private var missing = false
@@ -23,6 +25,8 @@ struct WidgetDisplayProbeView: View {
     private let now: Date
     private let events: [CountdownEvent]
     init() {
+        if ProcessInfo.processInfo.environment["DAYDISTANCE_WIDGET_PROBE_LANGUAGE"] == "en" { L10n.useLanguage(.english) }
+        else { L10n.useLanguage(.simplifiedChinese) }
         let date = Date()
         now = date
         events = [CountdownEvent(title: "七天后出发", targetDate: date.addingTimeInterval(7 * 86400), symbol: "airplane"),
@@ -42,6 +46,7 @@ struct WidgetDisplayProbeView: View {
                 }
             }
             HStack {
+                Toggle("今天计时验证", isOn: $todayTimed)
                 Toggle("显示事件图标", isOn: $options.showIcon)
                 Toggle("显示目标日期", isOn: $options.showTargetDate)
                 Toggle("显示当天精确计时", isOn: $options.showClock)
@@ -55,6 +60,7 @@ struct WidgetDisplayProbeView: View {
                 }.frame(width: 250)
             }.toggleStyle(.checkbox)
             HStack {
+                Stepper("快进：\(minutesLater) 分钟", value: $minutesLater, in: 0...1440).frame(width: 165)
                 Stepper("测试事件：\(eventCount) 条", value: $eventCount, in: 1...15).frame(width: 170)
                 Picker("大号每页条数", selection: $largeRows) { ForEach(5...10, id: \.self) { Text("\($0)").tag($0) } }.frame(width: 190)
                 Picker("预览页面", selection: $pageIndex) { ForEach(0..<3, id: \.self) { Text("\($0 + 1)").tag($0) } }.frame(width: 170)
@@ -71,14 +77,21 @@ struct WidgetDisplayProbeView: View {
         }.padding(20)
     }
     private func sample(family: WidgetFamily, single: Bool, title: String) -> some View {
-        let data = events.prefix(eventCount).map { event -> CountdownEvent in
+        let todayTarget = Calendar.current.date(bySettingHour: 23, minute: 59, second: 0, of: now)!
+        let previewEvents = todayTimed ? [
+            CountdownEvent(title: "今晚截止", targetDate: todayTarget, symbol: "flag", colorKey: "blue"),
+            CountdownEvent(title: "最后一分钟", targetDate: now.addingTimeInterval(45), symbol: "clock", colorKey: "rose"),
+            CountdownEvent(title: "今天全天", targetDate: now, isAllDay: true, calendarDay: CalendarDay(date: now), symbol: "calendar"),
+            CountdownEvent(title: "今天已过", targetDate: Calendar.current.startOfDay(for: now), symbol: "flag")
+        ] + events : events
+        let data = previewEvents.prefix(eventCount).map { event -> CountdownEvent in
             var value = event; value.displayFormat = format
             if inactive { value.lifecycle = .archived }; return value
         }
-        let selection = WidgetManualSelection(enabled: manual, slotIDs: [missing ? UUID().uuidString : events[2].id.uuidString, events[0].id.uuidString, events[1].id.uuidString])
+        let selection = WidgetManualSelection(enabled: manual, slotIDs: [missing ? UUID().uuidString : previewEvents[2].id.uuidString, previewEvents[0].id.uuidString, previewEvents[1].id.uuidString])
         return VStack(alignment: .leading) {
             Text(title).font(.caption).foregroundStyle(.secondary)
-            DayWidgetContent(entry: DayEntry(date: now, events: data, explicitID: single ? data[min(1, data.count - 1)].id.uuidString : nil, error: nil, displayOptions: options, manualSelection: selection, filter: filtered ? WidgetFilter(scope: .upcoming, includedTags: ["工作"], sort: .nearest, prioritizePinned: false, skip: 1) : WidgetFilter(), pageSize: largeRows, pagingID: "11111111-1111-1111-1111-111111111111", pageIndex: pageIndex), family: family)
+            DayWidgetContent(entry: DayEntry(date: now.addingTimeInterval(Double(minutesLater) * 60), events: data, explicitID: single ? data[todayTimed ? 0 : min(1, data.count - 1)].id.uuidString : nil, error: nil, displayOptions: options, manualSelection: selection, filter: filtered ? WidgetFilter(scope: .upcoming, includedTags: ["工作"], sort: .nearest, prioritizePinned: false, skip: 1) : WidgetFilter(), pageSize: largeRows, pagingID: "11111111-1111-1111-1111-111111111111", pageIndex: pageIndex), family: family)
                 .padding(16)
                 .frame(width: family == .systemSmall ? 164 : 344, height: family == .systemLarge ? 344 : 164)
                 .background(.background, in: RoundedRectangle(cornerRadius: 24))

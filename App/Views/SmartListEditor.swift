@@ -10,11 +10,29 @@ struct SmartListEditor: View {
         self.events = events
         _draft = State(initialValue: store.draft ?? SmartList())
     }
+    private var isSmart: Bool { draft.kind == .smart }
+    private var availableFolders: [SmartList] {
+        let excluded = ListHierarchy.descendants(of: draft.id, in: store.lists)
+        return store.lists.filter { $0.kind == .folder && !excluded.contains($0.id) }
+    }
     private var value: Binding<SmartList> { $draft }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(L10n.text("智能列表")).font(.title2.bold())
-            TextField(L10n.text("列表名称"), text: value.name).textFieldStyle(.roundedBorder)
+            Text(draft.typeLabel).font(.title2.weight(.semibold))
+            LabeledContent(L10n.text("名称")) {
+                TextField(L10n.text("名称"), text: value.name).textFieldStyle(.roundedBorder)
+            }
+            Picker(L10n.text("所在文件夹"), selection: value.parentID) {
+                Text(L10n.text("最外层")).tag(nil as UUID?)
+                ForEach(availableFolders) { folder in
+                    Text(ListHierarchy.path(for: folder, in: store.lists)).tag(Optional(folder.id))
+                }
+            }
+            if !isSmart {
+                Text(L10n.text(draft.kind == .folder ? "文件夹用于整理列表，也可以包含子文件夹。" : "手动分类事件；每个事件只属于一个普通列表。"))
+                    .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            if isSmart {
             HStack {
                 Text(L10n.text("满足以下"))
                 Picker(L10n.text("匹配方式"), selection: value.match) {
@@ -55,6 +73,7 @@ struct SmartListEditor: View {
                     Text(L10n.format("匹配 %ld 个，显示 %ld 个事件", result.matching.count, result.events.count)).foregroundStyle(.secondary)
                 }
             }
+            }
             if let error = store.errorMessage { Text(error).foregroundStyle(.red).font(.callout) }
             Divider()
             HStack {
@@ -67,7 +86,7 @@ struct SmartListEditor: View {
                 }.keyboardShortcut(.defaultAction)
                     .disabled((try? draft.validated()) == nil)
             }
-        }.padding(24).frame(width: 680)
+        }.padding(24).frame(width: isSmart ? 680 : 440)
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)
             .merge(with: NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange), NotificationCenter.default.publisher(for: .NSSystemClockDidChange))) { _ in reference = Date() }
     }

@@ -8,7 +8,7 @@ enum AutomationCLI {
     events create --title TEXT (--date YYYY-MM-DD | --at ISO8601) --request-id KEY
     events update ID --if-revision REV [--title TEXT] [--date DAY | --at ISO8601]
     events archive|trash|restore ID --if-revision REV
-    Fields: --tag TAG (repeatable), --includes-start-day true|false, --repeat-yearly true|false, --pinned true|false
+    Fields: --tag TAG (repeatable), --includes-start-day true|false, --repeat-yearly true|false, --pinned true|false, --after-date keep|trash
     All results are JSON. --json is accepted. --stdin reads one JSON API request.
     capabilities    Show API capabilities and local automation permission state.
     mcp             Serve MCP over stdio (newline-delimited JSON-RPC).
@@ -36,7 +36,7 @@ enum AutomationCLI {
       "--title": "title", "--date": "date", "--at": "at", "--request-id": "requestId",
       "--if-revision": "revision", "--query": "query", "--state": "state", "--limit": "limit",
       "--offset": "offset", "--tag": "tags", "--includes-start-day": "includesStartDay",
-      "--repeat-yearly": "repeatYearly", "--pinned": "pinned",
+      "--repeat-yearly": "repeatYearly", "--pinned": "pinned", "--after-date": "afterDate",
     ]
     while index < args.count {
       if args[index] == "--json" {

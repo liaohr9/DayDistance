@@ -14,7 +14,19 @@ struct DayProvider: AppIntentTimelineProvider {
         let now = Date()
         let current = read(configuration: configuration, at: now)
         if current.error != nil { return Timeline(entries: [current], policy: .after(now.addingTimeInterval(900))) }
-        var dates = WidgetPolicy.timelineDates(events: current.events, now: now, timeZone: .autoupdatingCurrent)
+        // Explicit/manual slots cannot be changed by automatic sorting. A hidden
+        // today event must not cause minute archives for an unrelated selection.
+        let clockEventIDs: Set<UUID>?
+        if context.family == .systemMedium && current.manualSelection.enabled {
+            clockEventIDs = Set(current.manualSelection.resolvedSlots(events: current.events, now: now).compactMap { slot in
+                if case .event(let event) = slot { return event.id }
+                return nil
+            })
+        } else if let id = current.explicitID {
+            clockEventIDs = Set(UUID(uuidString: id).map { [$0] } ?? [])
+        } else { clockEventIDs = nil }
+        var dates = WidgetPolicy.timelineDates(events: current.events, now: now, timeZone: .autoupdatingCurrent,
+                                               includeTodayClock: current.displayOptions.showClock, clockEventIDs: clockEventIDs)
         if let list = current.smartList {
             let horizon = now.addingTimeInterval(48 * 3600)
             var cursor = now

@@ -10,7 +10,7 @@ enum EventSortOrder: String, CaseIterable, Identifiable {
 enum WidgetPolicy {
     static func sorted(events: [CountdownEvent], now: Date, order: EventSortOrder = .date, includingInactive: Bool = false, prioritizePinned: Bool = true) -> [CountdownEvent] {
         // Resolve calendar occurrences once per event, rather than four times per comparison.
-        let candidates = events.filter { includingInactive || $0.isActive }
+        let candidates = events.filter { includingInactive || $0.isVisible(at: now) }
         if order == .created {
             return candidates.sorted { left, right in
                 if prioritizePinned && left.isPinned != right.isPinned { return left.isPinned }
@@ -31,12 +31,20 @@ enum WidgetPolicy {
 
     static func selection(events: [CountdownEvent], explicitID: String?, now: Date) -> WidgetSelection {
         if let explicitID {
-            guard let event = events.first(where: { $0.isActive && $0.id.uuidString == explicitID }) else { return .missing }
+            guard let event = events.first(where: { $0.isVisible(at: now) && $0.id.uuidString == explicitID }) else { return .missing }
             return .event(event)
         }
         return sorted(events: events, now: now).first.map(WidgetSelection.event) ?? .empty
     }
-    static func timelineDates(events: [CountdownEvent], now: Date, timeZone: TimeZone) -> [Date] {
+    /// A timed event due today uses a single HH:mm summary in widgets. All-day
+    /// dates and elapsed events keep their calendar-day presentation.
+    static func todayRemainingClock(event: CountdownEvent, now: Date, timeZone: TimeZone = .autoupdatingCurrent) -> String? {
+        let value = DayCounter.snapshot(event: event, now: now, timeZone: timeZone)
+        guard value.isSameDay, value.isFuture, value.supportsClock else { return nil }
+        return String(format: "%02d:%02d", value.seconds / 3600, value.seconds % 3600 / 60)
+    }
+
+    static func timelineDates(events: [CountdownEvent], now: Date, timeZone: TimeZone, includeTodayClock: Bool = false, clockEventIDs: Set<UUID>? = nil) -> [Date] {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         let horizon = now.addingTimeInterval(48*3600)
@@ -44,7 +52,28 @@ enum WidgetPolicy {
         for event in events where event.isActive {
             let target = event.countdownDate(now: now, timeZone: timeZone)
             let boundaries = event.isAllDay ? [target] : [target, target.addingTimeInterval(-86400 + 1), target.addingTimeInterval(86400)]
-            for boundary in boundaries where boundary > now && boundary <= horizon { dates.insert(boundary) }
+            let expiration = event.automaticTrashDate(timeZone: timeZone).map { [$0] } ?? []
+            for boundary in boundaries + expiration where boundary > now && boundary <= horizon { dates.insert(boundary) }
+        }
+        if includeTodayClock {
+            // WidgetKit archives static HH:mm text, so supply minute entries rather
+            // than a process timer or per-second reload. The 64-entry cap below
+            // also applies to these dates; the final entry requests another timeline.
+            for event in events where event.isActive && !event.isAllDay && (clockEventIDs?.contains(event.id) ?? true) {
+                let target = event.countdownDate(now: now, timeZone: timeZone)
+                let start = max(now, calendar.startOfDay(for: target))
+                guard target > start, start < horizon else { continue }
+                // HH:mm truncates seconds. Enter just after each remaining-minute
+                // boundary, including dates with nonzero seconds, to avoid a full
+                // extra minute showing the previous value at an exact boundary.
+                let wholeMinutes = floor(target.timeIntervalSince(start) / 60)
+                var tick = target.addingTimeInterval(-wholeMinutes * 60 + 0.01)
+                for _ in 0..<63 {
+                    guard tick < target, tick <= horizon else { break }
+                    dates.insert(tick)
+                    tick = tick.addingTimeInterval(60)
+                }
+            }
         }
         var midnight = calendar.startOfDay(for: now)
         while let next = calendar.date(byAdding: .day, value: 1, to: midnight), next <= horizon {
@@ -75,7 +104,7 @@ struct WidgetFilter: Codable, Equatable, Sendable {
         let include = Set(CountdownEvent.normalizedTags(includedTags).map(CountdownEvent.tagIdentity))
         let exclude = Set(CountdownEvent.normalizedTags(excludedTags).map(CountdownEvent.tagIdentity))
         let matching = events.filter { event in
-            guard event.isActive else { return false }
+            guard event.isVisible(at: now) else { return false }
             if scope == .upcoming && !event.isUpcoming(at: now) { return false }
             if scope == .past && event.isUpcoming(at: now) { return false }
             let tags = Set(event.tags.map(CountdownEvent.tagIdentity))

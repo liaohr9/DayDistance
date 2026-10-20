@@ -20,16 +20,16 @@ struct SmartListRepository: Sendable {
     private static func encodeSnapshot(_ lists: [SmartList]) throws -> Data {
         guard lists.count <= 100 else { throw SmartListError.invalidList }
         guard Set(lists.map(\.id)).count == lists.count else { throw EventError.duplicateID }
-        let validated = try lists.map { try $0.validated() }
+        let validated = try ListHierarchy.validated(lists)
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(Envelope(schemaVersion: 1, lists: validated))
+        let data = try encoder.encode(Envelope(schemaVersion: validated.allSatisfy { $0.kind == .smart && $0.parentID == nil } ? 1 : 2, lists: validated))
         guard data.count <= maximumBytes else { throw SmartListError.invalidList }
         return data
     }
     private static func decodeSnapshot(_ data: Data) throws -> [SmartList] {
         guard data.count <= maximumBytes else { throw SmartListError.invalidList }
         let decoder = JSONDecoder()
-        guard try decoder.decode(Schema.self, from: data).schemaVersion == 1 else { throw EventError.unsupportedVersion }
+        guard (1...2).contains(try decoder.decode(Schema.self, from: data).schemaVersion) else { throw EventError.unsupportedVersion }
         let lists = try decoder.decode(Envelope.self, from: data).lists
         _ = try encodeSnapshot(lists)
         return lists
@@ -125,7 +125,7 @@ struct SmartListRepository: Sendable {
     }
 
     private func rejectUnsupportedSchema(_ bytes: Data?) throws {
-        if let bytes, let schema = try? JSONDecoder().decode(Schema.self, from: bytes), schema.schemaVersion != 1 {
+        if let bytes, let schema = try? JSONDecoder().decode(Schema.self, from: bytes), !(1...2).contains(schema.schemaVersion) {
             throw EventError.unsupportedVersion
         }
     }
