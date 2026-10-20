@@ -99,18 +99,20 @@ struct EventRepository: Sendable {
             guard savedReceipts[key] != nil || savedReceipts.count < 4096 else { throw AutomationFailure("LIMIT_REACHED", "Automation receipt storage is full; no event was created.") }
             savedReceipts[key] = receipt
         }
-        let snapshot = try Self.encodeSnapshot(events)
-        var envelope = try JSONDecoder().decode(Envelope.self, from: snapshot)
-        envelope.automationReceipts = savedReceipts.isEmpty ? nil : savedReceipts
-        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(envelope).write(to: fileURL, options: .atomic)
+        // Validate and encode the final envelope once; avoid encoding, decoding
+        // and re-encoding the complete event array just to attach receipts.
+        try Self.encode(events, receipts: savedReceipts.isEmpty ? nil : savedReceipts)
+            .write(to: fileURL, options: .atomic)
     }
     static func encodeSnapshot(_ events: [CountdownEvent]) throws -> Data {
+        try encode(events, receipts: nil)
+    }
+    private static func encode(_ events: [CountdownEvent], receipts: [String: AutomationReceipt]?) throws -> Data {
         guard Set(events.map(\.id)).count == events.count else { throw EventError.duplicateID }
         for event in events { _ = try event.validated(now: event.updatedAt) }
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .deferredToDate
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try encoder.encode(Envelope(schemaVersion: 9, events: events))
+        return try encoder.encode(Envelope(schemaVersion: 9, events: events, automationReceipts: receipts))
     }
 }

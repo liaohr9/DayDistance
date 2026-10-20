@@ -90,6 +90,24 @@ import Darwin
         precondition(store.events.isEmpty)
         manager.undo(); precondition(store.events == [trashedAgain])
         manager.redo(); precondition(store.events.isEmpty)
+        // Long sessions retain only a bounded number of complete snapshots.
+        manager.removeAllActions()
+        var current: CountdownEvent? = nil
+        for index in 0..<130 {
+            var next = current ?? CountdownEvent(title: "History", targetDate: date)
+            next.title = "History \(index)"
+            precondition(store.upsert(next, replacing: current))
+            current = store.events.first
+        }
+        let finalSnapshot = store.events
+        var undoCount = 0
+        while manager.canUndo && undoCount < 200 { manager.undo(); undoCount += 1 }
+        precondition(undoCount == 100, "Long-session history must retain exactly the latest 100 mutations")
+        precondition(store.events.first?.title == "History 29")
+        var redoCount = 0
+        while manager.canRedo && redoCount < 200 { manager.redo(); redoCount += 1 }
+        precondition(redoCount == 100 && store.events == finalSnapshot)
+        print("BOUNDED_HISTORY_PASS: last 100 mutations undo/redo, older snapshots evicted")
         print("UNDO_PASS: application history/create/edit/delete/undo3/redo3/blocked editor/file/modal/backups/failed save/external CAS/archive/trash/recover/permanent delete")
     }
 }

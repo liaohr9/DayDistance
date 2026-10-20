@@ -27,6 +27,8 @@ enum LocalBackupError: LocalizedError {
 /// Called only after a successful actual event mutation. Listing and loading never create files.
 struct LocalBackupRepository: Sendable {
     static let maximumSnapshots = 20
+    private static let countCache = BackupSnapshotCountCache()
+    private static let nameExpression = try! NSRegularExpression(pattern: namePattern)
     let eventFileURL: URL
     var folderURL: URL { eventFileURL.deletingLastPathComponent().appendingPathComponent("backups", isDirectory: true) }
     private let lockName = ".daydistance-backups.lock"
@@ -120,8 +122,9 @@ struct LocalBackupRepository: Sendable {
             guard let (date, phase) = parseName(name) else { continue }
             let bytes = try readFile(name, directory: directory)
             // Invalid/unsupported files are retained, never offered for restore or pruned.
-            guard let events = try? EventRepository.decodeSnapshot(bytes) else { continue }
-            result.append(LocalBackup(id: name, createdAt: date, eventCount: events.count, phase: phase, fingerprint: fingerprint(bytes)))
+            let digest = fingerprint(bytes)
+            guard let count = Self.countCache.eventCount(in: bytes, fingerprint: digest) else { continue }
+            result.append(LocalBackup(id: name, createdAt: date, eventCount: count, phase: phase, fingerprint: digest))
         }
         return result.sorted {
             if $0.createdAt != $1.createdAt { return $0.createdAt > $1.createdAt }
@@ -175,12 +178,31 @@ struct LocalBackupRepository: Sendable {
     }
 
     private func parseName(_ name: String) -> (Date, LocalBackup.Phase)? {
-        guard let expression = try? NSRegularExpression(pattern: Self.namePattern),
-              let match = expression.firstMatch(in: name, range: NSRange(name.startIndex..., in: name)),
+        guard let match = Self.nameExpression.firstMatch(in: name, range: NSRange(name.startIndex..., in: name)),
               let stampRange = Range(match.range(at: 1), in: name), let stamp = Double(name[stampRange]),
               let phaseRange = Range(match.range(at: 2), in: name), let phase = LocalBackup.Phase(rawValue: String(name[phaseRange])) else { return nil }
         return (Date(timeIntervalSince1970: stamp / 1000), phase)
     }
     private func fingerprint(_ bytes: Data) -> String { SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined() }
     private func posixError() -> NSError { NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+}
+
+/// Cache only validated counts, never event arrays or file metadata. Every lookup
+/// still reads the protected descriptor and hashes the actual bytes. Restore and
+/// pruning retain their own fingerprint checks. The timezone participates because
+/// calendar-day validation can depend on it (for example, a skipped local date).
+private final class BackupSnapshotCountCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var counts: [String: Int] = [:]
+    func eventCount(in bytes: Data, fingerprint: String) -> Int? {
+        let key = TimeZone.autoupdatingCurrent.identifier + ":" + fingerprint
+        if let cached = lock.withLock({ counts[key] }) { return cached }
+        guard let events = try? EventRepository.decodeSnapshot(bytes) else { return nil }
+        let count = events.count
+        lock.withLock {
+            if counts.count >= 64 { counts.removeAll(keepingCapacity: true) }
+            counts[key] = count
+        }
+        return count
+    }
 }

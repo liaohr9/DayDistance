@@ -8,6 +8,15 @@ spec = importlib.util.spec_from_file_location('prepare_update', Path(__file__).w
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 class NotesTests(unittest.TestCase):
+    def test_performance_release_has_bilingual_notes(self):
+        notes = module.release_notes("1.17.1", "49")
+        for language in ["en", "zh-Hans"]:
+            self.assertIn("100", notes[language])
+            self.assertIn("Sparkle", notes[language])
+            self.assertIn("JSON", notes[language])
+        self.assertIn("备份", notes["zh-Hans"])
+        self.assertIn("backups", notes["en"])
+
     def test_merged_lists_expiry_and_fixes_have_bilingual_notes(self):
         notes = module.release_notes("1.17.0", "48")
         for value in ["MCP", "HH:mm", "Trash", "nested folders"]:

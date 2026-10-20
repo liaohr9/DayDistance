@@ -3,16 +3,16 @@ import SwiftUI
 
 // Used only by a generated QA copy of the production App entrypoint.
 // No URL scheme is registered; every test link explicitly targets this bundle.
-enum LifecycleProbeRepository {
+@MainActor enum LifecycleProbeRepository {
     static var root: URL { Bundle.main.bundleURL.deletingLastPathComponent() }
 
     static func makeStore() -> EventStore {
         let folder = root
         precondition(folder.lastPathComponent.hasPrefix("daydistance-ui-") && folder.pathExtension == "noindex")
         precondition(folder.deletingLastPathComponent().resolvingSymlinksInPath() == URL(fileURLWithPath: NSTemporaryDirectory()).resolvingSymlinksInPath())
-        precondition(folder.resolvingSymlinksInPath() == folder.standardizedFileURL)
+        precondition(folder.resolvingSymlinksInPath().path == folder.standardizedFileURL.path)
         let dataFolder = folder.appendingPathComponent("data", isDirectory: true)
-        precondition(dataFolder.resolvingSymlinksInPath() == dataFolder.standardizedFileURL)
+        precondition(dataFolder.resolvingSymlinksInPath().path == dataFolder.standardizedFileURL.path)
         let file = dataFolder.appendingPathComponent("events.json")
         let baseline = folder.appendingPathComponent("baseline.json")
         let repository = EventRepository(fileURL: file)

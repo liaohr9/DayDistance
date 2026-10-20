@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.17.1 — storage work, bounded undo and incremental builds
+
+- Cache validated backup event counts without skipping content verification.
+- Encode the final event document directly, retaining atomic writes and conflict/retry protection.
+- Keep the latest 100 event undo operations; native text undo remains independent.
+- Recover the embedded Sparkle framework after build-product cleanup, with version/path guard tests.
+- See [measurements and preview limits](docs/RELEASE-1.17.1.md). This remains an unnotarized Apple Silicon preview.
+
 ## 1.17.0 — date recurrence, lists and original-date memories
 
 - Add daily/monthly date recurrence; clamp shorter months and restore the anchor day.

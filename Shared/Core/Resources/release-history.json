@@ -2,6 +2,39 @@
   "schemaVersion": 1,
   "releases": [
     {
+      "version": "1.17.1",
+      "build": 49,
+      "date": "2026-10-20",
+      "sections": [
+        {
+          "kind": "improved",
+          "items": [
+            {
+              "zh-Hans": "优化本地备份列表：缓存已验证内容的事件计数，减少大量事件和备份时的重复解码；仍校验实际文件内容。",
+              "en": "Reduce repeated decoding when listing local backups by caching validated event counts, while continuing to verify actual file contents."
+            },
+            {
+              "zh-Hans": "保存事件时直接编码最终文档，减少重复的 JSON 编码与解码，保留冲突检测、原子写入和 Agent 重试保护。",
+              "en": "Encode the final event document directly when saving, reducing JSON work while retaining conflict checks, atomic writes and Agent retry protection."
+            },
+            {
+              "zh-Hans": "事件撤销历史保留最近 100 次操作，限制长时间使用时完整快照的持续积累；文字编辑的原生撤销保持独立。",
+              "en": "Keep the latest 100 event undo operations to bound retained full-document snapshots during long sessions. Native text-editing undo remains separate."
+            }
+          ]
+        },
+        {
+          "kind": "fixed",
+          "items": [
+            {
+              "zh-Hans": "修复清理构建产物后，增量构建可能遗漏 Sparkle 更新框架的问题，并增加恢复与路径保护测试。",
+              "en": "Fix incremental builds omitting the Sparkle updater framework after build-product cleanup, with recovery and path-safety tests."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.17.0",
       "build": 48,
       "date": "2026-10-20",

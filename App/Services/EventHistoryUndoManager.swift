@@ -9,6 +9,8 @@ final class EventHistoryUndoManager: UndoManager, @unchecked Sendable {
     override init() {
         super.init()
         groupsByEvent = false
+        // Each mutation retains full before/after snapshots. Bound long-session memory.
+        levelsOfUndo = 100
     }
 
     override var canUndo: Bool {

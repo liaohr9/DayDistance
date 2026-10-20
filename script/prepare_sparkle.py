@@ -4,9 +4,25 @@ import argparse,os,plistlib,shutil,subprocess,tempfile
 from pathlib import Path
 
 def prepare(framework: Path, identity: str):
+    framework=framework.resolve(strict=False)
+    if (framework.name != 'Sparkle.framework' or 'build.noindex' not in framework.parts
+            or framework.parent.name != 'Frameworks' or framework.parent.parent.name != 'Contents'
+            or framework.parent.parent.parent.suffix != '.app'):
+        raise ValueError('Only the embedded build.noindex app framework may be modified')
+    # The guarded installer removes its unindexed candidate after installation.
+    # Xcode can retain a successful copy-phase record for that missing product.
+    # Recover only the pinned sibling build product, never alter the package cache.
+    if not framework.exists():
+        source=framework.parents[3]/'Sparkle.framework'
+        if source.is_symlink(): raise ValueError('Unexpected framework build-product symlink')
+        info=plistlib.loads((source/'Versions/B/Resources/Info.plist').read_bytes())
+        if info.get('CFBundleShortVersionString') != '2.10.0':
+            raise ValueError('Review preparation when upgrading Sparkle')
+        framework.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copytree(source,framework,symlinks=True)
     framework=framework.resolve(strict=True)
-    if framework.name != 'Sparkle.framework' or 'build.noindex' not in framework.parts:
-        raise ValueError('Only the embedded build.noindex/Sparkle.framework may be modified')
+    if 'build.noindex' not in framework.parts or framework.parent.name != 'Frameworks':
+        raise ValueError('Unexpected embedded framework destination')
     base=framework/'Versions/B'
     info=plistlib.loads((base/'Resources/Info.plist').read_bytes())
     if info.get('CFBundleShortVersionString') != '2.10.0': raise ValueError('Review preparation when upgrading Sparkle')

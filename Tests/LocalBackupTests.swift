@@ -106,6 +106,24 @@ final class LocalBackupTests: XCTestCase {
         XCTAssertEqual(try backups.load(snapshot), [value])
         XCTAssertEqual(try Data(contentsOf: file(snapshot)), try EventRepository.encodeSnapshot([value]))
     }
+    func testWarmListingRevalidatesChangedContentEvenWhenTimestampIsRestored() throws {
+        let first = event("Original")
+        try backups.recordMutation(before: [], after: [first])
+        let original = try XCTUnwrap(backups.list().first)
+        let path = file(original)
+        let stamp = try FileManager.default.attributesOfItem(atPath: path.path)[.modificationDate] as! Date
+        let replacement = [first, event("Second")]
+        try EventRepository.encodeSnapshot(replacement).write(to: path)
+        try FileManager.default.setAttributes([.modificationDate: stamp], ofItemAtPath: path.path)
+        let refreshed = try XCTUnwrap(backups.list().first(where: { $0.id == original.id }))
+        XCTAssertEqual(refreshed.eventCount, 2)
+        XCTAssertNotEqual(refreshed.fingerprint, original.fingerprint)
+        XCTAssertEqual(try backups.load(refreshed), replacement)
+        XCTAssertThrowsError(try backups.load(original))
+        try Data("corrupted after warm listing".utf8).write(to: path)
+        XCTAssertFalse(try backups.list().contains(where: { $0.id == original.id }))
+        XCTAssertEqual(try String(contentsOf: path), "corrupted after warm listing")
+    }
     func testInvalidInputCreatesNothing() throws {
         let invalid = event("")
         XCTAssertThrowsError(try backups.recordMutation(before: [], after: [invalid]))
