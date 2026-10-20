@@ -7,7 +7,7 @@
     <a href="https://github.com/liaohr9/DayDistance/releases"><img src="https://img.shields.io/badge/macOS-14%2B-24292f?logo=apple&logoColor=white" alt="macOS 14+" /></a>
     <img src="https://img.shields.io/badge/SwiftUI-native-F05138?logo=swift&logoColor=white" alt="Native SwiftUI" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-4A7C69" alt="MIT license" /></a>
-    <a href="https://github.com/liaohr9/DayDistance/releases/tag/v1.15.0-preview.1"><img src="https://img.shields.io/badge/release-developer_preview-D69B51" alt="Developer preview" /></a>
+    <a href="https://github.com/liaohr9/DayDistance/releases/tag/v1.17.0-preview.1"><img src="https://img.shields.io/badge/release-developer_preview-D69B51" alt="Developer preview" /></a>
   </p>
   <p><a href="#下载">下载</a> · <a href="#一分钟开始">快速开始</a> · <a href="#桌面小组件">桌面小组件</a> · <a href="#从源码构建">源码构建</a> · <a href="docs/README.en.md">English</a></p>
 </div>
@@ -16,9 +16,9 @@
 
 ![日距的原生事件列表，展示六个虚构事件及倒计时与正计时](docs/images/events.png)
 
-> **当前发布：1.15.0（44）开发预览版。** 提供 Apple Silicon（arm64）App ZIP，支持应用内检查、下载和安装更新。使用本地 ad hoc 签名，**尚无 Developer ID 签名及 Apple 公证**；从互联网下载后可能被 macOS 阻止运行。这不是已公证正式安装版。若系统阻止打开，请等待公证版本或自行从源码构建，无需关闭系统安全保护。
+> **当前发布：1.17.0（48）开发预览版。** 提供 Apple Silicon（arm64）App ZIP，支持应用内检查、下载和安装更新。使用本地 ad hoc 签名，**尚无 Developer ID 签名及 Apple 公证**；从互联网下载后可能被 macOS 阻止运行。这不是已公证正式安装版。若系统阻止打开，请等待公证版本或自行从源码构建，无需关闭系统安全保护。
 
-本次加入 CLI + JSON 与 MCP，让本机 Agent 创建和管理事件。设置 → 自动化分别控制读取和写入，默认关闭；保护草稿与修改冲突，支持创建重试去重。安装前查看双语更新说明，安装后可离线查看历史版本。详见[自动化使用说明](docs/AUTOMATION.md)和[本次更新日志](docs/RELEASE-1.15.0.md)。
+本次新增每天/每月日期重复，并合并普通列表与嵌套文件夹、到期后处理、纪念日显示、小组件今日时分和 MCP 启动修复。侧栏“列表”右侧 ＋ 统一创建分类；事件“显示”页可选择到期保留或移入回收站。详见[本次更新日志](docs/RELEASE-1.17.0.md)。
 
 ## 应用语言
 
@@ -42,12 +42,12 @@
 
 ## 下载
 
-[**打开 Release 下载页 →**](https://github.com/liaohr9/DayDistance/releases/tag/v1.15.0-preview.1)
+[**打开 Release 下载页 →**](https://github.com/liaohr9/DayDistance/releases/tag/v1.17.0-preview.1)
 
 | 文件 | 用途 |
 | :--- | :--- |
-| [DayDistance-1.15.0-macOS-arm64-preview.zip](https://github.com/liaohr9/DayDistance/releases/download/v1.15.0-preview.1/DayDistance-1.15.0-macOS-arm64-preview.zip) | 压缩的 App，适合手动放到 Applications。 |
-| [SHA256SUMS.txt](https://github.com/liaohr9/DayDistance/releases/download/v1.15.0-preview.1/SHA256SUMS.txt) | 下载完整性校验。 |
+| [DayDistance-1.17.0-macOS-arm64-preview.zip](https://github.com/liaohr9/DayDistance/releases/download/v1.17.0-preview.1/DayDistance-1.17.0-macOS-arm64-preview.zip) | 压缩的 App，适合手动放到 Applications。 |
+| [SHA256SUMS.txt](https://github.com/liaohr9/DayDistance/releases/download/v1.17.0-preview.1/SHA256SUMS.txt) | 下载完整性校验。 |
 
 **源码构建要求：**macOS 14 或更新系统；仅 Apple Silicon（arm64）。本次包内应用、小组件和更新器全部为 arm64，不再包含 Intel 支持。该版本在 macOS 27、Xcode 27 上构建与现场验证；较早受支持系统仍需进一步实测。桌面小组件需要 macOS 14+。
 
@@ -78,13 +78,27 @@ shasum -a 256 -c SHA256SUMS.txt
 <p>事件编辑分为基本信息、提醒、显示，切换时保留同一草稿。</p>
 </details>
 
-## 智能列表（1.11 源码）
+## 日期重复（1.17）
 
-在侧栏“智能列表”旁点击 ＋，按“字段 → 比较方式 → 值”添加规则，选择满足全部或任一条件。名称、标签、日期状态、相距天数、日期范围、置顶和每年重复都可组合；实时显示匹配数。“排序与跳过”默认收起，适合创建“工作标签、未来30天、跳过最近一项”等列表。
+事件编辑 → 基本信息 → 重复，直接选择“不重复 / 每天 / 每月 / 每年”。每天保留原本地时间；每月保留原日号，例如 1 月 31 日 → 2 月 28/29 日 → 3 月 31 日。当天保留本次日期，次日转向下一次；短月规则无需额外设置。通知仍在“提醒”页单独开启，重复事件不会自动移入回收站。
 
-在小组件中选择“内容来源 → 智能列表”，再选列表即可复用规则。外观选标准、简洁或自定；自定展开图标、日期和精确计时。原有组件选择、手动槽位和已生效的旧筛选保留。规则丢失或不可读时显示提示，不自动替换为全部事件。
+## 普通列表与文件夹（1.17）
 
-智能列表独立保存，有20份本地快照及恢复确认；损坏原文会先隔离保留，较新格式拒绝覆盖。**事件导出只包含事件，不包含智能列表。1.13.0 预览已包含当前功能。
+在侧栏“列表”右侧点击 ＋ 创建普通列表或文件夹。一个事件归属一个普通列表，可在编辑页选择或多选后移动；文件夹可以嵌套，智能列表仍可匹配这些事件。删除分类保留事件。列表备份包含层级和归属，事件JSON导出仅包含事件内容。
+
+## 到期后与纪念显示（1.17）
+
+在“事件 → 显示”中选择“保留为纪念日”或“移入回收站”，并选择天数、周／天、年／月／天或周年格式。默认保留原日期继续正计时；恢复后取消自动清理。一次性全天事件保留到当天结束。App关闭时组件先隐藏过期事件，下次App/CLI打开时补移回收站；未保存编辑会延后处理。
+
+开启当天计时的组件会将今天尚未到期的定时事件显示为“还有 HH:mm”。
+
+## 智能列表
+
+在侧栏“列表”旁点击 ＋，选择“智能列表”，按“字段 → 比较方式 → 值”添加规则，选择满足全部或任一条件。名称、标签、日期状态、相距天数、日期范围、置顶和每年重复都可组合；实时显示匹配数。“排序与跳过”默认收起，适合创建“工作标签、未来30天、跳过最近一项”等列表。
+
+在小组件中选择“内容来源 → 列表”，再选列表即可复用规则。外观选标准、简洁或自定；自定展开图标、日期和精确计时。原有组件选择、手动槽位和已生效的旧筛选保留。规则丢失或不可读时显示提示，不自动替换为全部事件。
+
+智能列表独立保存，有20份本地快照及恢复确认；损坏原文会先隔离保留，较新格式拒绝覆盖。**事件导出只包含事件，不包含列表和分类。** 智能规则、层级和归属通过列表备份保护。
 
 ## 桌面小组件
 
@@ -154,7 +168,7 @@ Vim 键位默认开启，可在设置关闭。仅在事件列表中生效，文�
 - 当前开发预览使用 `~/Library/Application Support/DayDistanceLocal/events.json`，主应用与小组件共享本机数据。通知内容交给本机 macOS 通知系统处理。
 - 「文件 → 导出事件…」保存完整 JSON；「导入事件…」加入尚不存在的事件，同一标识内容冲突时拒绝整次合并，保留当前数据。
 - 成功修改后自动保留最多 20 份可读本地快照；「文件 → 备份与恢复…」先预览变化，再确认恢复。
-- 1.9 写入 **schema 7**、读取 schema 1–7。打开旧文件不会自动改写；第一次保存后，1.8 及更早版本无法读取新格式。保存新格式后不要用旧版本编辑。
+- 当前事件写入 **schema 9**，兼容读取 schema 1–9；分类写入 schema 2。打开旧文件不会自动改写；保存新设置后请勿用不支持新格式的旧版编辑。事件导出不包含分类归属，分类结构可使用列表备份保护。
 - 正式签名版将使用 App Group 容器，通过导出 / 导入迁移，不能假定不同存储模式自动共享。
 
 详见 [使用帮助](HELP.md) · [隐私说明](PRIVACY.md)。公开截图、Issue 或诊断报告前，请检查其中是否含有个人事件。
@@ -179,7 +193,7 @@ bash script/build_and_run.sh --build-only
 
 产物：`build.noindex/Build/Products/DebugLocal/DayDistance.app`。也可以用 Xcode 打开 `DayDistance.xcodeproj`，选择 `DayDistance` scheme 与 `DebugLocal` 配置。该配置使用本地共享路径与开发沙盒目录例外，不等同于正式发行配置。
 
-预览包的可复现编译命令、Release 签名 / 公证门槛见 [构建与发行](docs/BUILDING.md)。已有 178 项核心测试覆盖日期、生命周期、备份、组件选择、提醒排期等，并另有原生服务与故障夹具。**测试通过不等于所有系统上的实际通知送达、小组件刷新或 VoiceOver 已完整验收。**
+预览包的可复现编译命令、Release 签名 / 公证门槛见 [构建与发行](docs/BUILDING.md)。已有 198 项核心测试覆盖日期、生命周期、备份、组件选择、提醒排期等，并另有原生服务与故障夹具。**测试通过不等于所有系统上的实际通知送达、小组件刷新或 VoiceOver 已完整验收。**
 
 ### 工程地图
 
@@ -209,7 +223,7 @@ script/              构建、安装、发行检查与独立 UI 验证
 
 应用设置采用一级侧栏：通用、通知与后台、数据与备份、小组件。导入、导出和恢复沿用文件菜单的同一流程，编辑期间会禁用；组件检查的详细内容按需展开。
 
-事件编辑分为“基本信息 / 提醒 / 显示”，切页不丢草稿，取消和保存固定在底部。日期每年重复与周年通知分别设置；计数规则提供第0天／第1天示例。
+事件编辑分为“基本信息 / 提醒 / 显示”，切页不丢草稿，取消和保存固定在底部。日期的每日/月度/年度重复与通知分别设置；计数规则提供第0天／第1天示例。
 
 基础页优先名称与日期；标签与年度规则在“更多选项”，已有规则会自动展开。颜色合并为一个带色标的入口，并保留系统色轮。帮助按五个主题折叠，小组件检查集中到设置。列表与侧栏按日期边界刷新，只有需要精确计时的行按秒更新；提醒预览不再生成完整通知队列。
 
@@ -221,6 +235,6 @@ script/              构建、安装、发行检查与独立 UI 验证
 
 更新机制从 1.13.0 开始提供。已安装的更早版本需要先手动安装一次。GitHub Release 资产与签名 appcast 必须一起发布后，线上更新才可用；未公证预览仍不等于正式签名发行版。
 
-## Agent 自动化（1.15.0）
+## Agent 自动化（1.17.0）
 
 原生 App 内置 CLI + JSON 和 MCP stdio。默认关闭访问，可在“设置 → 自动化”分别开启读取和写入；支持创建、查询、修改、归档和恢复，保护未保存的草稿。见[双语使用与 MCP 配置说明](docs/AUTOMATION.md)。

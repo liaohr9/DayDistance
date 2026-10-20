@@ -3,14 +3,14 @@
 <h1>DayDistance · 日距</h1>
 <p><strong>Give anticipation a date. Give memories a measure.</strong></p>
 <p>A native macOS day counter with desktop widgets. Local, simple, and open source.</p>
-<p><a href="https://github.com/liaohr9/DayDistance/releases/tag/v1.15.0-preview.1">Download preview</a> · <a href="../README.md">中文</a> · <a href="BUILDING.md">Build guide</a></p>
+<p><a href="https://github.com/liaohr9/DayDistance/releases/tag/v1.17.0-preview.1">Download preview</a> · <a href="../README.md">中文</a> · <a href="BUILDING.md">Build guide</a></p>
 </div>
 
 ![Native event list with six fictional examples in English](images/events-en.png)
 
-> **1.15.0 (44) is an unnotarized developer preview for Apple Silicon.** The App ZIP uses ad hoc signing, without a Developer ID certificate or Apple notarization. macOS may block downloaded builds. This is not a notarized production release; wait for a notarized version or build from source if blocked. No system-security changes are required or recommended.
+> **1.17.0 (48) is an unnotarized developer preview for Apple Silicon.** The App ZIP uses ad hoc signing, without a Developer ID certificate or Apple notarization. macOS may block downloaded builds. This is not a notarized production release; wait for a notarized version or build from source if blocked. No system-security changes are required or recommended.
 
-This update adds a JSON CLI and MCP stdio server for local agents. Enable read and optional write access in Settings → Automation; both start off. Protect active drafts, check revisions and safely retry creates. Review localized changes before updating, or read offline history afterward. See the [automation guide](AUTOMATION.md) and [release notes](RELEASE-1.15.0.md).
+This update adds daily/monthly date recurrence, regular lists, nested folders, after-date actions and original-date memories; it also improves same-day widget timers and fixes GUI opening while MCP is listening. See the [release notes](RELEASE-1.17.0.md).
 
 ## App language
 
@@ -30,18 +30,28 @@ No accounts, subscriptions, advertisements, telemetry, or cloud sync. Events sta
 
 ## Get started
 
-1. Download the **Apple Silicon preview ZIP** from [Releases](https://github.com/liaohr9/DayDistance/releases/tag/v1.15.0-preview.1). Requires Apple Silicon (arm64) and macOS14+. Tested on macOS27; other supported versions still need runtime testing.
+1. Download the **Apple Silicon preview ZIP** from [Releases](https://github.com/liaohr9/DayDistance/releases/tag/v1.17.0-preview.1). Requires Apple Silicon (arm64) and macOS14+. Tested on macOS27; other supported versions still need runtime testing.
 2. Move `日距.app` into Applications, subject to the preview limitations above.
 3. Press `⌘N`, enter a name and date, and save. Disable All Day to specify a time.
 4. Right-click the desktop, choose Edit Widgets, and add DayDistance. Edit the widget to select events and presentation.
 
 Before upgrading, export your events, save/cancel current editing, and quit the old build. Keep only one installed app. Checksums are available as `SHA256SUMS.txt` in the Release.
 
-## Smart Lists (1.11 source)
+## Date recurrence (1.17)
 
-Click ＋ beside Smart Lists in the sidebar. Add field / comparison / value rows and match all or any conditions. Combine titles, complete tags, date status, days away, date ranges, pinning, and yearly repetition. Counts update as you edit. Sort & Skip stays collapsed until needed.
+In the event editor, open Basics → Repeat and choose Never, Daily, Monthly or Yearly. Daily events keep local wall time. Monthly dates restore their original day after shorter months: January 31 → February 28/29 → March 31. Events retain the current occurrence throughout its local day and advance the next day. Notifications remain a separate choice under Reminder; repeating events are never automatically moved to Trash.
 
-Choose Smart Lists as a widget’s Content Source, then select a named list. Multiple widgets can reuse its rules. Appearance offers Standard, Compact, or Custom; Custom reveals icon, date, and precise-clock switches. Existing selections, manual slots, and active legacy filters remain intact. Unavailable rules show an error rather than displaying all events.
+## Lists, folders and after-date actions (1.17)
+
+Use ＋ beside Lists to create regular lists or nested folders. An event belongs to one regular list; smart lists can still match it. Removing a category preserves its events. List backups contain hierarchy and membership; event JSON exports contain events only.
+
+In Event → Display, choose Keep as a Memory or Move to Trash, independently of day/week/calendar/anniversary formatting. Existing events retain their original dates by default. All-day one-time events remain through the day; restoring an event disables cleanup. Widgets hide expired events while the app is closed; the app or CLI writes Trash on the next load. Active edits defer cleanup. With same-day timers enabled, widgets show today’s upcoming timed events as Remaining HH:mm.
+
+## Smart Lists
+
+Click ＋ beside Lists in the sidebar and choose Smart List. Add field / comparison / value rows and match all or any conditions. Combine titles, complete tags, date status, days away, date ranges, pinning, and yearly repetition. Counts update as you edit. Sort & Skip stays collapsed until needed.
+
+Choose Lists as a widget’s Content Source, then select a named list. Multiple widgets can reuse its rules. Appearance offers Standard, Compact, or Custom; Custom reveals icon, date, and precise-clock switches. Existing selections, manual slots, and active legacy filters remain intact. Unavailable rules show an error rather than displaying all events.
 
 Rules have their own local storage and 20 recovery snapshots. Explicit recovery preserves damaged bytes and rejects newer formats. **Event JSON exports do not include Smart Lists.** Included in the 1.13.0 preview.
 
@@ -53,7 +63,7 @@ Use comma-separated tags in the event editor; search matches names and tags. Dis
 
 Each widget independently supports date scope, all/any included tags, excluded tags, sorting, pinned priority, and skipping the first N results. Conditions apply before sorting, skipping, and pagination. To start from the second-nearest event, choose Nearest, disable pinned priority, and skip 1. Manual medium slots keep their explicit order. Large widgets show 5–10 events per page with previous/next buttons; scrolling and swiping are not supported. Widgets with identical filters, sorting, and page size share a page position; different settings keep separate positions.
 
-Opening older data does not migrate it automatically. Saving in 1.9 writes schema 7, which 1.8 and earlier cannot read. Export a backup before downgrading.
+Opening older data does not rewrite it automatically. New event writes use schema 9 and lists use schema 2. Export a backup before downgrading; older apps cannot safely read newer formats.
 
 
 ![English small, medium, and dark widget views in a native showcase](images/widgets-en.png)
@@ -80,7 +90,7 @@ Replacing an ad hoc development build can still encounter an AMFI launch-signing
 
 Vim keys operate only in the list: `j/k`, `gg/G`, `/`, `v`, `Space`, `i`, `o`, `dd`, `u`, `Ctrl-r`. Text fields and dialogs retain native input.
 
-Preview data: `~/Library/Application Support/DayDistanceLocal/events.json`. Use File → Export/Import Events for full JSON backups. Current writes use schema 7; schemas 1–7 can be read. Do not downgrade after saving the new format. Formal signed builds use an App Group and require export/import migration from preview data.
+Preview data: `~/Library/Application Support/DayDistanceLocal/events.json`. Use File → Export/Import Events for full JSON backups. Current event writes use schema 9; schemas 1–9 can be read. Lists use schema 2; event exports do not include list membership, so use list backups for classification. Do not downgrade after saving the new format. Formal signed builds use an App Group and require export/import migration from preview data.
 
 ## Build and contribute
 
@@ -116,6 +126,6 @@ Open **Settings → Software Update** to toggle automatic checking, or choose **
 
 This feature starts with 1.13.0; earlier downloads need one manual upgrade. The signed feed and release archive must be published together before online updates work.
 
-## Agent automation (1.15.0)
+## Agent automation (1.17.0)
 
 The native app includes a JSON CLI and MCP stdio server. Enable read and optional write access in Settings → Automation. Supports create, query, edit, archive and restore with draft protection. See the [bilingual CLI/MCP guide](AUTOMATION.md).
