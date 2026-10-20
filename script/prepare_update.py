@@ -47,6 +47,22 @@ def validate_feed(feed: Path, archive: Path, tag: str, info: dict):
     if len(base64.b64decode(signature,validate=True))!=64:raise ValueError('Archive signature missing')
     return signature
 
+def validate_architectures(app: Path):
+    """Preview packages must also contain only arm64, including updater helpers."""
+    app=app.resolve(strict=True)
+    binaries=[]
+    for bundle in [app,app/'Contents/PlugIns/DayDistanceWidget.appex']:
+        info=plistlib.loads((bundle/'Contents/Info.plist').read_bytes())
+        binaries.append(bundle/'Contents/MacOS'/info['CFBundleExecutable'])
+    base=app/'Contents/Frameworks/Sparkle.framework/Versions/B'
+    binaries.extend(base/name for name in ['Sparkle','Autoupdate','Updater.app/Contents/MacOS/Updater','XPCServices/Installer.xpc/Contents/MacOS/Installer'])
+    for binary in binaries:
+        if not binary.resolve(strict=True).is_relative_to(app):
+            raise ValueError('Executable escapes application: '+str(binary))
+        architectures=subprocess.check_output(['lipo','-archs',str(binary)],text=True,timeout=30).split()
+        if architectures!=['arm64']:
+            raise ValueError('Only arm64 is allowed in update packages: '+str(binary))
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('app',type=Path);parser.add_argument('--output',required=True,type=Path);parser.add_argument('--tag',required=True);parser.add_argument('--sparkle-tools',required=True,type=Path);parser.add_argument('--preview',action='store_true');parser.add_argument('--team');parser.add_argument('--group')
     args=parser.parse_args();app=args.app.resolve(strict=True);info=plistlib.loads((app/'Contents/Info.plist').read_bytes())
@@ -67,6 +83,7 @@ def main():
     if output.exists():raise FileExistsError('Use a new output directory; never overwrite a release')
     for f in app.rglob('*'):
         if f.name=='events.json':raise ValueError('User data must never be packaged')
+    validate_architectures(app)
     subprocess.run(['codesign','--verify','--deep','--strict',str(app)],check=True)
     tools=args.sparkle_tools.resolve()/ 'bin'
     key=subprocess.check_output([str(tools/'generate_keys'),'--account',ACCOUNT,'-p'],text=True).strip()

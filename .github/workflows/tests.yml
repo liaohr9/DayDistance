@@ -19,6 +19,7 @@ jobs:
         run: |
           python3 script/test_undo.py
           python3 script/test_prepare_sparkle.py
+          python3 script/test_update_package.py
       - name: Safe application replacement
         run: python3 script/test_install.py
       - name: Background registration lifecycle

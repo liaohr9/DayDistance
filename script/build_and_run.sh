@@ -22,6 +22,7 @@ cleanup_on_exit() {
 trap cleanup_on_exit EXIT
 if [[ "$MODE" != --install-only ]]; then
  python3 "$ROOT_DIR/script/test_prepare_sparkle.py" > "$BUILD_DIR/sparkle-prepare-tests.log" 2>&1 || { cat "$BUILD_DIR/sparkle-prepare-tests.log"; exit 1; }
+ python3 "$ROOT_DIR/script/test_update_package.py" > "$BUILD_DIR/update-package-tests.log" 2>&1 || { cat "$BUILD_DIR/update-package-tests.log"; exit 1; }
  python3 "$ROOT_DIR/script/test_install.py" > "$BUILD_DIR/install-tests.log" 2>&1 || { cat "$BUILD_DIR/install-tests.log"; exit 1; }
  python3 "$ROOT_DIR/script/test_lifecycle_ui_probe.py" > "$BUILD_DIR/lifecycle-tests.log" 2>&1 || { cat "$BUILD_DIR/lifecycle-tests.log"; exit 1; }
  python3 "$ROOT_DIR/script/test_ui_probe_control.py" > "$BUILD_DIR/ui-probe-control-tests.log" 2>&1 || { cat "$BUILD_DIR/ui-probe-control-tests.log"; exit 1; }
