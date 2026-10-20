@@ -12,7 +12,7 @@ final class LifecycleTests: XCTestCase {
         XCTAssertTrue(try EventRepository.decodeSnapshot(legacy)[0].isActive)
         var trash = event; trash.lifecycle = .trashed; trash.trashedAt = Date(); trash.wasArchivedBeforeTrash = true
         XCTAssertEqual(try EventRepository.decodeSnapshot(EventRepository.encodeSnapshot([trash])), [trash])
-        XCTAssertThrowsError(try EventRepository.decodeSnapshot(Data("{\"schemaVersion\":9,\"events\":[]}".utf8)))
+        XCTAssertThrowsError(try EventRepository.decodeSnapshot(Data("{\"schemaVersion\":10,\"events\":[]}".utf8)))
     }
     func testInactiveExcludedFromAutomaticAndExplicitWidgets() {
         let now = Date()

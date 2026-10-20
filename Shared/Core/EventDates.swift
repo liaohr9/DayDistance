@@ -32,7 +32,7 @@ struct CalendarTime: Codable, Equatable, Sendable {
 }
 extension CountdownEvent {
     func originalDate(timeZone: TimeZone = .autoupdatingCurrent) -> Date {
-        guard (isAllDay || repeatYearly), let day = calendarDay,
+        guard (isAllDay || isRepeating), let day = calendarDay,
               let start = day.date(timeZone: timeZone) else { return targetDate }
         let c = CalendarDay.calendar(timeZone)
         let time = annualTime ?? CalendarTime(date: targetDate, timeZone: timeZone)
@@ -41,28 +41,41 @@ extension CountdownEvent {
     func occurrence(onOrAfter now: Date, timeZone: TimeZone = .autoupdatingCurrent) -> Date {
         let c = CalendarDay.calendar(timeZone)
         let original = calendarDay ?? CalendarDay(date: targetDate, timeZone: timeZone)
-        if !repeatYearly { return isAllDay ? original.date(timeZone: timeZone) ?? targetDate : targetDate }
+        if !isRepeating { return isAllDay ? original.date(timeZone: timeZone) ?? targetDate : targetDate }
         let time = annualTime ?? CalendarTime(date: targetDate, timeZone: timeZone)
-        // Keep this occurrence throughout its day, and never move before the original year.
+        let today = c.startOfDay(for: now)
+        guard let anchor = original.date(timeZone: timeZone) else { return targetDate }
+        func timed(_ day: Date) -> Date {
+            isAllDay ? day : c.date(bySettingHour: time.hour, minute: time.minute, second: 0, of: day) ?? day
+        }
+        // Keep the occurrence throughout its local day, including after its time.
+        if repeatDaily { return timed(max(anchor, today)) }
         let year = max(original.year, c.component(.year, from: now))
         guard (1...9999).contains(year) else { return targetDate }
-        for candidateYear in year...min(year + 1, 9999) {
-            guard let month = c.date(from: DateComponents(year: candidateYear, month: original.month, day: 1)),
-                  let range = c.range(of: .day, in: .month, for: month),
-                  let day = c.date(from: DateComponents(year: candidateYear, month: original.month, day: min(original.day, range.count))) else { continue }
-            let occurrence = isAllDay ? day : c.date(bySettingHour: time.hour, minute: time.minute, second: 0, of: day) ?? day
-            if c.startOfDay(for: occurrence) >= c.startOfDay(for: now) { return occurrence }
+        let month = c.component(.month, from: now)
+        let firstMonth = repeatMonthly ? max(original.year * 12 + original.month - 1, c.component(.year, from: now) * 12 + month - 1) : year * 12 + original.month - 1
+        for offset in 0...1 {
+            let index = firstMonth + offset * (repeatMonthly ? 1 : 12)
+            let y = index / 12, m = index % 12 + 1
+            guard (1...9999).contains(y),
+                  let start = c.date(from: DateComponents(year: y, month: m, day: 1)),
+                  let range = c.range(of: .day, in: .month, for: start),
+                  let day = c.date(from: DateComponents(year: y, month: m, day: min(original.day, range.count))) else { continue }
+            if day >= today { return timed(day) }
         }
         return targetDate
     }
     func countdownDate(now: Date, timeZone: TimeZone = .autoupdatingCurrent) -> Date {
         occurrence(onOrAfter: now, timeZone: timeZone)
     }
-    func isUpcoming(at now: Date) -> Bool { repeatYearly || countdownDate(now: now) > now }
+    func isUpcoming(at now: Date) -> Bool { isRepeating || countdownDate(now: now) > now }
     func dateLabel(now: Date, original: Bool = false, locale: Locale = .autoupdatingCurrent, timeZone: TimeZone = .autoupdatingCurrent) -> String {
         let date = original ? originalDate(timeZone: timeZone) : countdownDate(now: now, timeZone: timeZone)
         let style = Date.FormatStyle(date: .numeric, time: isAllDay ? .omitted : .shortened, locale: locale, timeZone: timeZone)
         let label = date.formatted(style)
-        return repeatYearly && !original ? L10n.format("每年 · %@", label) : label
+        guard !original else { return label }
+        if repeatDaily { return L10n.format("每天 · %@", label) }
+        if repeatMonthly { return L10n.format("每月 · %@", label) }
+        return repeatYearly ? L10n.format("每年 · %@", label) : label
     }
 }

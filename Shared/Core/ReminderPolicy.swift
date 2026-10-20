@@ -1,6 +1,6 @@
 import Foundation
 
-enum ReminderCadence: String, Hashable, Sendable { case once, daily, monthly, yearly }
+enum ReminderCadence: String, Hashable, Sendable { case once, occurrence, daily, monthly, yearly }
 
 struct PlannedEventReminder: Equatable, Sendable {
     let identifier: String
@@ -38,22 +38,23 @@ enum ReminderPolicy {
         let enabled = events.filter { $0.isVisible(at: now, timeZone: timeZone) && $0.hasEnabledReminders }
         for event in enabled { candidates += recurringRequests(event: event, now: now, calendar: calendar, limit: recurringLimit) }
         for event in enabled where event.reminder != .none {
-            var cursor = now
+            let daysBefore = event.reminder == .custom ? event.reminderDaysBefore : (event.reminder == .dayBefore ? 1 : 0)
+            var cursor = event.isRepeating ? calendar.date(byAdding: .day, value: daysBefore, to: now) ?? now : now
             var futureCount = 0
-            // One extra annual candidate lets a reminder already passed today roll to next year.
-            let attempts = event.repeatYearly ? (annualOccurrences > 0 ? annualOccurrences + 1 : 0) : 1
+            // One extra candidate skips a reminder whose time has already passed today.
+            let horizon = event.repeatDaily ? dailyOccurrences : event.repeatMonthly ? monthlyOccurrences : annualOccurrences
+            let attempts = event.isRepeating ? (horizon > 0 ? horizon + 1 : 0) : 1
             for _ in 0..<attempts {
                 guard (1...9999).contains(calendar.component(.year, from: cursor)) else { break }
                 let occurrence = event.occurrence(onOrAfter: cursor, timeZone: timeZone)
                 guard (1...9999).contains(calendar.component(.year, from: occurrence)) else { break }
-                if event.repeatYearly, calendar.startOfDay(for: occurrence) < calendar.startOfDay(for: cursor) { break }
+                if event.isRepeating, calendar.startOfDay(for: occurrence) < calendar.startOfDay(for: cursor) { break }
                 var fireDate = occurrence
                 if event.reminder == .custom, let time = event.reminderTime {
                     fireDate = calendar.date(bySettingHour: time.hour, minute: time.minute, second: 0, of: occurrence) ?? occurrence
                 } else if event.isAllDay {
                     fireDate = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: occurrence) ?? occurrence
                 }
-                let daysBefore = event.reminder == .custom ? event.reminderDaysBefore : (event.reminder == .dayBefore ? 1 : 0)
                 if daysBefore > 0 {
                     // Calendar subtraction preserves local wall time across 23/25-hour days.
                     fireDate = calendar.date(byAdding: .day, value: -daysBefore, to: fireDate) ?? fireDate
@@ -62,11 +63,12 @@ enum ReminderPolicy {
                     candidates.append(PlannedEventReminder(
                         identifier: identifierPrefix + event.id.uuidString + "." + String(Int64(fireDate.timeIntervalSince1970)),
                         eventID: event.id, title: event.title, fireDate: fireDate, daysBefore: daysBefore, kind: event.reminder,
-                        followsDeviceTimeZone: event.isAllDay || event.repeatYearly,
+                        followsDeviceTimeZone: event.isAllDay || event.isRepeating,
+                        cadence: event.isRepeating ? .occurrence : .once,
                         body: daysBefore == 0 ? L10n.text("今天是这个日子。") : (daysBefore == 1 ? L10n.text("明天是这个日子。") : L10n.format("距离这个日子还有 %ld 天。", daysBefore))))
                     futureCount += 1
                 }
-                guard event.repeatYearly, futureCount < max(0, annualOccurrences),
+                guard event.isRepeating, futureCount < max(0, horizon),
                       let nextDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: occurrence)),
                       nextDay > cursor else { break }
                 cursor = nextDay
@@ -84,7 +86,7 @@ enum ReminderPolicy {
         let limit = max(0, maximumRequests)
         return EventReminderPlan(requests: limitedRequests(candidates, maximumRequests: limit), pastEventCount: pastEventCount,
                                  truncatedRequestCount: max(0, candidates.count - limit),
-                                 hasAnnualEvents: enabled.contains { $0.repeatYearly || $0.yearlyReminderTime != nil })
+                                 hasAnnualEvents: enabled.contains { $0.isRepeating || $0.yearlyReminderTime != nil })
     }
 
     /// Reserve the next request for each event/cadence before filling remaining slots.

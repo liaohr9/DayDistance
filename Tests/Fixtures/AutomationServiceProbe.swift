@@ -42,6 +42,17 @@ import Foundation
   require((await service.execute(keepRequest)).object?["error"]?.object?["code"] == .string("CONFLICT"),"policy differs in replay hash")
   var badAnnual=oneShot;badAnnual.arguments["requestId"] = .string("annual-once");badAnnual.arguments["repeatYearly"] = .bool(true)
   require((await service.execute(badAnnual)).object?["error"]?.object?["code"] == .string("INVALID_ARGUMENT"),"annual one-shot conflict rejected")
+  for field in ["repeatDaily", "repeatMonthly"] {
+   let repeated=AutomationRequest(operation:"create",arguments:["title":.string(field),"at":.string("2028-01-31T09:15:00Z"),field:.bool(true),"requestId":.string(field)])
+   let response=await service.execute(repeated)
+   require(response.object?["ok"] == .bool(true),"new recurrence create")
+   require(response.object?["data"]?.object?["event"]?.object?[field] == .bool(true),"recurrence DTO")
+   require((await service.execute(repeated)).object?["data"]?.object?["replayed"] == .bool(true),"recurrence replay")
+   var conflict=repeated;conflict.arguments["repeatYearly"] = .bool(true);conflict.arguments["requestId"] = .string(field+"conflict")
+   require((await service.execute(conflict)).object?["error"]?.object?["code"] == .string("INVALID_ARGUMENT"),"repeat flags conflict")
+   var trash=repeated;trash.arguments["afterDate"] = .string("trash");trash.arguments["requestId"] = .string(field+"trash")
+   require((await service.execute(trash)).object?["error"]?.object?["code"] == .string("INVALID_ARGUMENT"),"repeating trash conflict")
+  }
   print("AUTOMATION_SERVICE_PASS: create/replay/restart/conflict/draft/revision/permission")
  }
  static func require(_ value:Bool,_ message:String) { if !value {fatalError(message)} }

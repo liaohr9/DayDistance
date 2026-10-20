@@ -123,7 +123,7 @@ import Foundation
     isMutating = true
     defer { isMutating = false }
     let fields: Set<String> = [
-      "title", "at", "date", "tags", "includesStartDay", "repeatYearly", "pinned", "afterDate",
+      "title", "at", "date", "tags", "includesStartDay", "repeatDaily", "repeatMonthly", "repeatYearly", "pinned", "afterDate",
     ]
     var saved: CountdownEvent
     if op == "create" {
@@ -146,6 +146,8 @@ import Foundation
         "repeatYearly": .bool(e.repeatYearly), "pinned": .bool(e.isPinned),
       ]
       // Keep default payloads byte-compatible with v1.15 idempotency receipts.
+      if e.repeatDaily { payloadFields["repeatDaily"] = .bool(true) }
+      if e.repeatMonthly { payloadFields["repeatMonthly"] = .bool(true) }
       if e.afterDate != .keep { payloadFields["afterDate"] = .string(e.afterDate.rawValue) }
       let payload = JSONValue.object(payloadFields)
       let keyHash = JSONValue.digest(Data(("daydistance-api-v1:" + key).utf8))
@@ -245,6 +247,7 @@ import Foundation
     if let tags = try strings(a, "tags") { e.tags = tags }
     for (key, target) in [
       ("includesStartDay", \CountdownEvent.includesStartDay),
+      ("repeatDaily", \CountdownEvent.repeatDaily), ("repeatMonthly", \CountdownEvent.repeatMonthly),
       ("repeatYearly", \CountdownEvent.repeatYearly), ("pinned", \CountdownEvent.isPinned),
     ] {
       if let value = a[key] {
@@ -258,8 +261,8 @@ import Foundation
       guard let action = EventAfterDate(rawValue: raw) else { throw AutomationFailure.invalid("afterDate must be keep or trash.") }
       e.afterDate = action
     }
-    guard !e.repeatYearly || e.afterDate != .trash else {
-      throw AutomationFailure.invalid("Yearly repeating events cannot use afterDate=trash.")
+    guard !e.isRepeating || e.afterDate != .trash else {
+      throw AutomationFailure.invalid("Repeating events cannot use afterDate=trash.")
     }
     do { return try e.validated(now: Date()) } catch {
       throw AutomationFailure.invalid("Invalid event fields: \(error.localizedDescription)")
@@ -284,7 +287,8 @@ import Foundation
       "id": .string(e.id.uuidString), "revision": .string(revision(e)), "title": .string(e.title),
       "at": .string(AutomationDates.timestamp(e.targetDate)), "allDay": .bool(e.isAllDay),
       "state": .string(e.lifecycle.rawValue), "tags": .array(e.tags.map(JSONValue.string)),
-      "includesStartDay": .bool(e.includesStartDay), "repeatYearly": .bool(e.repeatYearly),
+      "includesStartDay": .bool(e.includesStartDay), "repeatDaily": .bool(e.repeatDaily),
+      "repeatMonthly": .bool(e.repeatMonthly), "repeatYearly": .bool(e.repeatYearly),
       "pinned": .bool(e.isPinned), "afterDate": .string(e.afterDate.rawValue),
     ]
     if let d = e.calendarDay {

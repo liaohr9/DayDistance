@@ -32,7 +32,7 @@ enum EventDisplayFormatter {
             let today = calendar.startOfDay(for: now)
             let start = min(target, today)
             var end = max(target, today)
-            if event.includesStartDay && !event.repeatYearly && !snapshot.isFuture {
+            if event.includesStartDay && !event.isRepeating && !snapshot.isFuture {
                 end = calendar.date(byAdding: .day, value: 1, to: end) ?? end
             }
             // Ordered local day endpoints make past/future durations symmetric, including month ends and DST.
@@ -59,7 +59,8 @@ enum EventDisplayFormatter {
     }
 
     private static func anniversary(event: CountdownEvent, now: Date, timeZone: TimeZone, remainder: String) -> String {
-        if !event.repeatYearly {
+        if event.repeatDaily || event.repeatMonthly { return remainder }
+        if !event.isRepeating {
             let calendar = CalendarDay.calendar(timeZone)
             let original = calendar.startOfDay(for: event.originalDate(timeZone: timeZone))
             let today = calendar.startOfDay(for: now)

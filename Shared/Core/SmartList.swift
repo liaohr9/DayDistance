@@ -107,7 +107,7 @@ struct SmartList: Codable, Equatable, Identifiable, Sendable {
             let l = dates[left.id]!, r = dates[right.id]!
             switch sort {
             case .automatic:
-                let lf = left.repeatYearly || l > now, rf = right.repeatYearly || r > now
+                let lf = left.isRepeating || l > now, rf = right.isRepeating || r > now
                 if lf != rf { return lf }; if l != r { return lf ? l < r : l > r }
             case .nearest, .farthest:
                 let ld = abs(l.timeIntervalSince(now)), rd = abs(r.timeIntervalSince(now))

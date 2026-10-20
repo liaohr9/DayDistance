@@ -28,6 +28,16 @@ struct ListUIProbe: App {
             expired.afterDate = .trash
             events = [memory, once, expired]
         }
+        if mode == "recurrence" {
+            var monthly = CountdownEvent(title: "每月 · 月末结算", targetDate: Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 31, hour: 9, minute: 15))!)
+            monthly.recurrence = .monthly
+            monthly.calendarDay = CalendarDay(date: monthly.targetDate)
+            monthly.annualTime = CalendarTime(date: monthly.targetDate)
+            monthly.tags = ["工作", "结算"]
+            var daily = CountdownEvent(title: "每日 · 阅读", targetDate: Date().addingTimeInterval(3600))
+            daily.recurrence = .daily
+            events = [monthly, daily]
+        }
         try! repository.save(events, replacing: [])
         let source = folder.appendingPathComponent("data/events.json")
         let baseline = try! Data(contentsOf: source)
@@ -37,7 +47,7 @@ struct ListUIProbe: App {
                 try! Data("{\"schemaVersion\":".utf8).write(to: source, options: .atomic)
             } else {
                 var envelope = try! JSONSerialization.jsonObject(with: baseline) as! [String: Any]
-                envelope["schemaVersion"] = 9
+                envelope["schemaVersion"] = 10
                 try! JSONSerialization.data(withJSONObject: envelope).write(to: source, options: .atomic)
             }
         }

@@ -65,14 +65,14 @@ def main():
         original = baseline.read_bytes()
         try:
             envelope = json.loads(original)
-            if not isinstance(envelope, dict) or envelope.get("schemaVersion") not in (1, 2, 3, 4, 5, 6, 7) or not isinstance(envelope.get("events"), list):
+            if not isinstance(envelope, dict) or envelope.get("schemaVersion") not in (1, 2, 3, 4, 5, 6, 7, 8, 9) or not isinstance(envelope.get("events"), list):
                 raise ValueError("Invalid QA baseline")
         except (ValueError, UnicodeDecodeError) as error:
             raise ValueError("Invalid QA baseline") from error
         if args.operation == "corrupt":
             original = b'{"schemaVersion":'
         elif args.operation == "newer":
-            envelope["schemaVersion"] = 8
+            envelope["schemaVersion"] = 10
             original = json.dumps(envelope, ensure_ascii=False).encode("utf-8")
         with (data / "events.json.lock").open("r+") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

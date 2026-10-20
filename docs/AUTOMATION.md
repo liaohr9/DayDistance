@@ -76,7 +76,7 @@ daydistance events create --title 'Submit paper' --at 2027-03-01T18:00:00+08:00 
 daydistance events list --state active --tag Research --limit 20 --offset 0
 ```
 
-Use `--date YYYY-MM-DD` for an all-day calendar date, or `--at ISO8601` for a timestamp with seconds and an explicit timezone. Exactly one is required when creating; timestamps are saved at the app's existing minute precision. Optional fields: repeatable `--tag`, `--includes-start-day true|false`, `--repeat-yearly true|false`, and `--pinned true|false`. Updates preserve fields you omit; JSON `tags: []` clears tags. Supported list states: `active`, `archived`, `trashed`, `all`; all supplied tags must match. List order is ascending target date, then UUID; page size is 1–200, default 100.
+Use `--date YYYY-MM-DD` for an all-day calendar date, or `--at ISO8601` for a timestamp with seconds and an explicit timezone. Exactly one is required when creating; timestamps are saved at the app's existing minute precision. Optional fields: repeatable `--tag`, `--includes-start-day true|false`, `--repeat-daily true|false`, `--repeat-monthly true|false`, `--repeat-yearly true|false`, and `--pinned true|false`. Updates preserve fields you omit; JSON `tags: []` clears tags. Supported list states: `active`, `archived`, `trashed`, `all`; all supplied tags must match. List order is ascending target date, then UUID; page size is 1–200, default 100.
 
 ## Contract and limits / 接口约定与边界
 
@@ -94,6 +94,14 @@ Use `--date YYYY-MM-DD` for an all-day calendar date, or `--at ISO8601` for a ti
 
 ### After-date behavior / 到期后处理
 
-`events create` and `events update` accept `--after-date keep|trash` (JSON/MCP: `afterDate`). The default `keep` preserves the original date and counts elapsed days. `trash` hides an expired nonrepeating event from widgets and moves it to recoverable Trash when the app/CLI next processes the store. All-day events expire at the start of the following local day. Restoring an event changes this field to `keep`. Yearly repeat and `trash` cannot be combined.
+`events create` and `events update` accept `--after-date keep|trash` (JSON/MCP: `afterDate`). The default `keep` preserves the original date and counts elapsed days. `trash` hides an expired nonrepeating event from widgets and moves it to recoverable Trash when the app/CLI next processes the store. All-day events expire at the start of the following local day. Restoring an event changes this field to `keep`. Date recurrence and `trash` cannot be combined.
 
 例如：`daydistance events create --title "Submit assignment" --at 2027-01-15T18:00:00+08:00 --after-date trash --request-id assignment-2027-01-15`。GUI 中在事件的“显示 → 到期后”设置；保留原日期的纪念事件可选择天数或周年格式。
+
+### Date recurrence / 日期重复
+
+Set exactly one of `repeatDaily`, `repeatMonthly`, `repeatYearly` to true (CLI: `--repeat-daily`, `--repeat-monthly`, `--repeat-yearly`, each followed by true/false). To switch types on an existing event, explicitly set the old flag false and the new flag true in the same update. Omitted fields remain unchanged. Defaults are false; legacy create request IDs retain their original deduplication hashes.
+
+Daily events keep local wall-clock time. Monthly events keep the original day number: January 31 → February 28/29 → March 31. Both retain their occurrence throughout the local day, never predate the original date, and do not implicitly enable notifications. Repeating date reminders use the existing finite queue and opt-in background renewal. New writes use event schema 9; use a current app to read them.
+
+每天按原本地时间重复；每月保留原日号，短月使用月末，下月恢复。事件当日继续显示本次日期，次日进入下一次；日期重复不会自动开启通知。编辑页的“重复频率”四选一；修改现有事件时须在同一请求中关闭旧频率、开启新频率。

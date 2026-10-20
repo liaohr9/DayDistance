@@ -81,7 +81,7 @@ class FaultControlTests(unittest.TestCase):
 
     def test_recover_refuses_invalid_baseline(self):
         original = self.source.read_bytes()
-        for raw in (b"broken", b'{"schemaVersion":8,"events":[]}', b'{"schemaVersion":1}'):
+        for raw in (b"broken", b'{"schemaVersion":10,"events":[]}', b'{"schemaVersion":1}'):
             with self.subTest(raw=raw):
                 (self.root / "baseline.json").write_bytes(raw)
                 with self.assertRaises(ValueError):
@@ -109,7 +109,7 @@ class FaultControlTests(unittest.TestCase):
                 if operation == "corrupt":
                     self.assertFalse(result["valid_json"])
                 else:
-                    self.assertEqual(result["schema_version"], 8)
+                    self.assertEqual(result["schema_version"], 10)
                 self.assertEqual(baseline.read_bytes(), original)
                 self.assertEqual((self.data / "events.json.lock").stat().st_ino, inode)
                 self.control("recover")

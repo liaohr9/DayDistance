@@ -18,7 +18,7 @@ def restore_data_permissions(root):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("list", "faults", "read-corrupt", "read-newer", "disk-full", "lifecycle", "expiration"), default="list")
+    parser.add_argument("--mode", choices=("list", "faults", "read-corrupt", "read-newer", "disk-full", "lifecycle", "expiration", "recurrence"), default="list")
     parser.add_argument("--sdk", type=Path, help="Explicit local SDK for QA compilation when full Xcode is unavailable")
     parser.add_argument("--language", choices=("zh-Hans", "en"))
     args = parser.parse_args()
@@ -50,7 +50,7 @@ def main():
             "CFBundleDevelopmentRegion": "zh-Hans",
         }))
         shutil.copytree(project / "Shared/Core/Resources", contents / "Resources")
-        if args.mode not in ("list", "expiration"):
+        if args.mode not in ("list", "expiration", "recurrence"):
             subprocess.run(["/usr/bin/xcrun", "swiftc", "-parse-as-library", *sdk_flags,
                             str(project / "Shared/Core/L10n.swift"), str(project / "Shared/Core/Event.swift"), str(project / "Shared/Core/EventDates.swift"), str(project / "Shared/Core/EventRepository.swift"), str(project / "Shared/Core/AutomationProtocol.swift"), str(project / "Shared/Core/ExportDestinationPolicy.swift"),
                             str(project / "Tests/Fixtures/UIWriterProbe.swift"), "-o", str(Path(temporary) / "writer")],

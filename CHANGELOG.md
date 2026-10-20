@@ -1,6 +1,9 @@
 # Changelog
 
-## 1.17.0 — lists, expiry and original-date memories
+## 1.17.0 — date recurrence, lists and original-date memories
+
+- Add daily/monthly date recurrence; clamp shorter months and restore the anchor day.
+- Separate recurrence and tags into native editor groups; expose repeatDaily/repeatMonthly to CLI/MCP.
 
 - Add regular lists and nested folders, with a single sidebar creation menu and one-list event membership.
 - Add a Display-page after-date action: preserve the original date or move one-time events to recoverable Trash. Nonannual memories may use anniversary formatting.

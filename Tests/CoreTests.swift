@@ -232,7 +232,7 @@ final class CoreTests: XCTestCase {
         guard !exported.isEmpty else { return }
         struct Backup: Decodable { let schemaVersion: Int; let events: [CountdownEvent] }
         let copy = try JSONDecoder().decode(Backup.self, from: exported)
-        XCTAssertEqual(copy.schemaVersion, 8)
+        XCTAssertEqual(copy.schemaVersion, 9)
         XCTAssertEqual(copy.events, [event])
         XCTAssertEqual(try Data(contentsOf: repo.fileURL), original)
     }

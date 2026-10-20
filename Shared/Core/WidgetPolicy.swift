@@ -20,7 +20,7 @@ enum WidgetPolicy {
         }
         return candidates.map { event in
             let date = event.countdownDate(now: now)
-            return (event: event, date: date, future: event.repeatYearly || date > now)
+            return (event: event, date: date, future: event.isRepeating || date > now)
         }.sorted { left, right in
             if prioritizePinned && left.event.isPinned != right.event.isPinned { return left.event.isPinned }
             if left.future != right.future { return left.future }

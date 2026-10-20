@@ -34,7 +34,6 @@ struct EventEditor: View {
     @Environment(\.eventReminders) private var reminders
     @StateObject private var colorPanel = EventColorPanel()
     @State private var tagsText: String
-    @State private var showMoreOptions: Bool
     @State private var nextReminderDate: Date?
     @State private var previewRevision = 0
     private let lists: [SmartList]
@@ -56,7 +55,6 @@ struct EventEditor: View {
         draft.targetDate = draft.originalDate()
         self._event = State(initialValue: draft)
         self._tagsText = State(initialValue: draft.tags.joined(separator: ", "))
-        self._showMoreOptions = State(initialValue: !draft.tags.isEmpty || draft.repeatYearly)
         self.session = session
         self.store = store
         self.lists = lists
@@ -119,7 +117,7 @@ struct EventEditor: View {
                     event.reminderTime = event.isAllDay ? CalendarTime(hour: 9, minute: 0) : CalendarTime(date: event.targetDate)
                 }
             }
-            .onChange(of: event.repeatYearly) { if event.repeatYearly { event.afterDate = .keep } }
+            .onChange(of: event.recurrence) { if event.isRepeating { event.afterDate = .keep } }
             .alert("删除事件？", isPresented: $confirmDelete) {
                 Button("取消", role: .cancel) { }
                 Button("删除", role: .destructive) {
@@ -149,14 +147,24 @@ struct EventEditor: View {
                         .datePickerStyle(.field).accessibilityLabel("目标时间")
                 }
             }
-            Section {
-                DisclosureGroup("更多选项", isExpanded: $showMoreOptions) {
-                    TextField("标签", text: $tagsText, prompt: Text("用逗号分隔，如工作，旅行")).accessibilityLabel("事件标签")
-                    Toggle("日期每年重复", isOn: $event.repeatYearly)
-                    if event.repeatYearly {
-                        Text("倒计至下一次纪念日；通知在“提醒”页单独设置。").font(.caption).foregroundStyle(.secondary)
-                    }
+            Section("重复") {
+                Picker("重复频率", selection: $event.recurrence) {
+                    ForEach(EventRecurrence.allCases, id: \.self) { Text($0.label).tag($0) }
+                }.pickerStyle(.segmented).labelsHidden()
+                if event.repeatMonthly {
+                    Text("当月没有该日时使用月末，下个月恢复原日号。")
+                        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                } else if event.repeatDaily {
+                    Text("每天按原时间重复；通知在“提醒”页单独设置。")
+                        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                } else if event.repeatYearly {
+                    Text("倒计至下一次纪念日；通知在“提醒”页单独设置。")
+                        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
+            }
+            Section("标签") {
+                TextField("标签", text: $tagsText, prompt: Text("用逗号分隔，如工作，旅行"))
+                    .accessibilityLabel("事件标签")
             }
         }.formStyle(.grouped)
     }
@@ -217,8 +225,8 @@ struct EventEditor: View {
                     ForEach(EventAfterDate.allCases, id: \.self) { action in
                         Text(action.label).tag(action)
                     }
-                }.disabled(event.repeatYearly)
-                Text(L10n.text(event.repeatYearly ? "每年重复的事件会保留，不会自动移入回收站。" : event.afterDate == .keep ? "保留原日期，继续显示已经过的天数或周年。" : "到期后移入回收站，可随时恢复；全天事件在当天结束后处理。"))
+                }.disabled(event.isRepeating)
+                Text(L10n.text(event.isRepeating ? "重复事件会保留，不会自动移入回收站。" : event.afterDate == .keep ? "保留原日期，继续显示已经过的天数或周年。" : "到期后移入回收站，可随时恢复；全天事件在当天结束后处理。"))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("计数方式") {
@@ -227,7 +235,7 @@ struct EventEditor: View {
                         Text(format.label).tag(format)
                     }
                 }
-                if !event.repeatYearly {
+                if !event.isRepeating {
                     Toggle("当天算第 1 天", isOn: $event.includesStartDay).toggleStyle(.switch)
                     Text(L10n.text(event.includesStartDay ? "当天 1 天 → 次日 2 天" : "当天 0 天 → 次日 1 天"))
                         .font(.caption).foregroundStyle(.secondary)
@@ -265,8 +273,8 @@ struct EventEditor: View {
     private var preparedDraft: CountdownEvent {
         var value = event
         value.tags = CountdownEvent.parseTags(tagsText)
-        value.calendarDay = value.isAllDay || value.repeatYearly ? CalendarDay(date: value.targetDate) : nil
-        value.annualTime = value.repeatYearly ? CalendarTime(date: value.targetDate) : nil
+        value.calendarDay = value.isAllDay || value.isRepeating ? CalendarDay(date: value.targetDate) : nil
+        value.annualTime = value.isRepeating ? CalendarTime(date: value.targetDate) : nil
         return value
     }
     @ViewBuilder private func recurringControl(_ label: String, timeLabel: String, keyPath: WritableKeyPath<CountdownEvent, CalendarTime?>) -> some View {

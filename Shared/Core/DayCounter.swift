@@ -23,8 +23,8 @@ struct CounterSnapshot: Equatable, Sendable {
 enum DayCounter {
     static func snapshot(event: CountdownEvent, now: Date, timeZone: TimeZone = .autoupdatingCurrent) -> CounterSnapshot {
         var value = snapshot(target: event.countdownDate(now: now, timeZone: timeZone), now: now,
-                             includesStartDay: event.includesStartDay && !event.repeatYearly, timeZone: timeZone)
-        value.supportsClock = !event.isAllDay && (!event.repeatYearly || value.isFuture)
+                             includesStartDay: event.includesStartDay && !event.isRepeating, timeZone: timeZone)
+        value.supportsClock = !event.isAllDay && (!event.isRepeating || value.isFuture)
         return value
     }
     static func snapshot(target: Date, now: Date, includesStartDay: Bool = false, timeZone: TimeZone = .autoupdatingCurrent) -> CounterSnapshot {

@@ -739,3 +739,15 @@
 "保留原日期，继续显示已经过的天数或周年。" = "Keep the original date and count elapsed days or anniversaries.";
 "到期后移入回收站，可随时恢复；全天事件在当天结束后处理。" = "Move to recoverable Trash after the date. All-day events remain until the day ends.";
 "到期移入回收站" = "Move Expired Events to Trash";
+"不重复" = "Never";
+"每天" = "Daily";
+"每月" = "Monthly";
+"每年" = "Yearly";
+"每天 · %@" = "Daily · %@";
+"每月 · %@" = "Monthly · %@";
+"重复" = "Repeat";
+"重复频率" = "Frequency";
+"当月没有该日时使用月末，下个月恢复原日号。" = "Use the last day in shorter months, then return to the original day next month.";
+"每天按原时间重复；通知在“提醒”页单独设置。" = "Repeat at the original time each day. Set notifications separately in Reminders.";
+"重复事件会保留，不会自动移入回收站。" = "Repeating events are kept and never automatically moved to Trash.";
+"请选择一种日期重复方式。" = "Choose one date recurrence frequency.";

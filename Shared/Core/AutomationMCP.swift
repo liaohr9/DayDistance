@@ -93,7 +93,7 @@ actor AutomationMCP {
         "type": .string("string"),
         "description": .string("All-day YYYY-MM-DD; mutually exclusive with at."),
       ]), "tags": .object(["type": .string("array"), "items": string, "maxItems": .number(30)]),
-      "includesStartDay": bool, "repeatYearly": bool, "pinned": bool,
+      "includesStartDay": bool, "repeatDaily": bool, "repeatMonthly": bool, "repeatYearly": bool, "pinned": bool,
       "afterDate": .object(["type": .string("string"), "enum": .array([.string("keep"), .string("trash")]),
         "description": .string("Keep original date and count elapsed days (default), or move a nonrepeating event to recoverable Trash after expiry.")]),
     ]

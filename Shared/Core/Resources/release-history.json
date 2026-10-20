@@ -16,6 +16,10 @@
             {
               "zh-Hans": "事件“显示”页新增到期后处理：保留原日期继续计日，或将一次性事件移入可恢复的回收站；保留的纪念事件也可使用周年格式。",
               "en": "Choose what happens after an event in Display settings: keep the original date and count elapsed days, or move a one-time event to recoverable Trash. Memories can also use anniversary formatting."
+            },
+            {
+              "zh-Hans": "事件日期新增每天、每月重复，与每年重复统一选择；短月使用月末，下个月恢复原日号。通知仍在“提醒”页单独设置。",
+              "en": "Repeat event dates daily or monthly alongside yearly recurrence. Short months use the last day, then restore the original day next month. Configure notifications separately in Reminders."
             }
           ]
         },
@@ -33,6 +37,10 @@
             {
               "zh-Hans": "CLI、JSON 与 MCP 支持 afterDate=keep|trash（CLI：--after-date）；延续重试去重、冲突保护、备份及提醒同步。",
               "en": "Set afterDate=keep|trash through JSON/MCP, or --after-date in the CLI, with existing deduplication, conflict protection, backups and reminder synchronization."
+            },
+            {
+              "zh-Hans": "重新分组事件基本信息，重复频率和标签各自成组，不再挤在“更多选项”里；CLI/MCP 同步支持 repeatDaily 和 repeatMonthly。",
+              "en": "Separate date recurrence and tags into clear editor groups. CLI/MCP also accept repeatDaily and repeatMonthly."
             }
           ]
         },

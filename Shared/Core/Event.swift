@@ -27,6 +27,18 @@ enum EventReminder: String, Codable, CaseIterable, Sendable {
     }
 }
 
+enum EventRecurrence: String, CaseIterable, Sendable {
+    case never, daily, monthly, yearly
+    var label: String {
+        switch self {
+        case .never: return L10n.text("不重复")
+        case .daily: return L10n.text("每天")
+        case .monthly: return L10n.text("每月")
+        case .yearly: return L10n.text("每年")
+        }
+    }
+}
+
 struct CountdownEvent: Codable, Identifiable, Equatable, Sendable {
     var id: UUID
     var title: String
@@ -35,6 +47,18 @@ struct CountdownEvent: Codable, Identifiable, Equatable, Sendable {
     var calendarDay: CalendarDay?
     var annualTime: CalendarTime?
     var repeatYearly: Bool
+    var repeatDaily = false
+    var repeatMonthly = false
+    var isRepeating: Bool { repeatDaily || repeatMonthly || repeatYearly }
+    var recurrence: EventRecurrence {
+        get { repeatDaily ? .daily : repeatMonthly ? .monthly : repeatYearly ? .yearly : .never }
+        set {
+            repeatDaily = newValue == .daily
+            repeatMonthly = newValue == .monthly
+            repeatYearly = newValue == .yearly
+            if isRepeating { afterDate = .keep }
+        }
+    }
     var isPinned: Bool
     var reminder: EventReminder
     var reminderDaysBefore: Int = 0
@@ -43,7 +67,7 @@ struct CountdownEvent: Codable, Identifiable, Equatable, Sendable {
     var monthlyReminderTime: CalendarTime?
     var yearlyReminderTime: CalendarTime?
     var hasEnabledReminders: Bool { reminder != .none || hasRecurringReminders }
-    var hasRecurringReminders: Bool { dailyReminderTime != nil || monthlyReminderTime != nil || yearlyReminderTime != nil }
+    var hasRecurringReminders: Bool { (isRepeating && reminder != .none) || dailyReminderTime != nil || monthlyReminderTime != nil || yearlyReminderTime != nil }
     var afterDate = EventAfterDate.keep
     var lifecycle: EventLifecycle
     var trashedAt: Date?
@@ -70,7 +94,7 @@ struct CountdownEvent: Codable, Identifiable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case reminderDaysBefore, reminderTime, dailyReminderTime, monthlyReminderTime, yearlyReminderTime
-        case afterDate, tags, id, title, targetDate, includesStartDay, displayFormat, isAllDay, calendarDay, annualTime, repeatYearly, isPinned, reminder, lifecycle, trashedAt, wasArchivedBeforeTrash, symbol, colorKey, createdAt, updatedAt
+        case repeatDaily, repeatMonthly, afterDate, tags, id, title, targetDate, includesStartDay, displayFormat, isAllDay, calendarDay, annualTime, repeatYearly, isPinned, reminder, lifecycle, trashedAt, wasArchivedBeforeTrash, symbol, colorKey, createdAt, updatedAt
     }
 
     init(from decoder: Decoder) throws {
@@ -81,6 +105,8 @@ struct CountdownEvent: Codable, Identifiable, Equatable, Sendable {
         isAllDay = try values.decodeIfPresent(Bool.self, forKey: .isAllDay) ?? false
         calendarDay = try values.decodeIfPresent(CalendarDay.self, forKey: .calendarDay)
         annualTime = try values.decodeIfPresent(CalendarTime.self, forKey: .annualTime)
+        repeatDaily = try values.decodeIfPresent(Bool.self, forKey: .repeatDaily) ?? false
+        repeatMonthly = try values.decodeIfPresent(Bool.self, forKey: .repeatMonthly) ?? false
         repeatYearly = try values.decodeIfPresent(Bool.self, forKey: .repeatYearly) ?? false
         isPinned = try values.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
         reminder = try values.decodeIfPresent(EventReminder.self, forKey: .reminder) ?? .none
@@ -103,7 +129,7 @@ struct CountdownEvent: Codable, Identifiable, Equatable, Sendable {
     }
 
     func automaticTrashDate(timeZone: TimeZone = .autoupdatingCurrent) -> Date? {
-        guard afterDate == .trash, !repeatYearly else { return nil }
+        guard afterDate == .trash, !isRepeating else { return nil }
         guard isAllDay else { return targetDate }
         let calendar = CalendarDay.calendar(timeZone)
         let start = (calendarDay ?? CalendarDay(date: targetDate, timeZone: timeZone)).date(timeZone: timeZone)
@@ -142,11 +168,12 @@ struct CountdownEvent: Codable, Identifiable, Equatable, Sendable {
         result.tags = Self.normalizedTags(tags)
         guard result.tags.count <= 30, result.tags.allSatisfy({ $0.count <= 40 }) else { throw EventError.invalidTags }
         guard !result.title.isEmpty else { throw EventError.blankTitle }
+        guard [repeatDaily, repeatMonthly, repeatYearly].filter({ $0 }).count <= 1 else { throw EventError.invalidRecurrence }
         guard targetDate.timeIntervalSince1970.isFinite else { throw EventError.invalidDate }
         result.targetDate = Date(timeIntervalSince1970: floor(targetDate.timeIntervalSince1970 / 60) * 60)
-        if isAllDay || repeatYearly {
+        if isAllDay || isRepeating {
             if result.calendarDay == nil { result.calendarDay = CalendarDay(date: targetDate) }
-            if repeatYearly && result.annualTime == nil { result.annualTime = CalendarTime(date: targetDate) }
+            if isRepeating && result.annualTime == nil { result.annualTime = CalendarTime(date: targetDate) }
         }
         if let day = result.calendarDay, day.date(timeZone: .autoupdatingCurrent) == nil { throw EventError.invalidDate }
         if let time = result.annualTime, !(0..<24).contains(time.hour) || !(0..<60).contains(time.minute) { throw EventError.invalidDate }
@@ -176,9 +203,10 @@ struct EventEditSession: Identifiable, Sendable {
 }
 
 enum EventError: LocalizedError {
-    case invalidTags, blankTitle, invalidDate, unsupportedVersion, duplicateID, unavailableContainer, changedData, busyData, importConflict, protectedExportDestination
+    case invalidRecurrence, invalidTags, blankTitle, invalidDate, unsupportedVersion, duplicateID, unavailableContainer, changedData, busyData, importConflict, protectedExportDestination
     var errorDescription: String? {
         switch self {
+        case .invalidRecurrence: return L10n.text("请选择一种日期重复方式。")
         case .invalidTags: return L10n.text("最多添加 30 个标签，每个标签不超过 40 个字。")
         case .blankTitle: return L10n.text("请填写事件名称。")
         case .invalidDate: return L10n.text("日期无法识别，请重新选择。")

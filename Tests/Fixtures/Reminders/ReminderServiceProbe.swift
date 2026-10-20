@@ -227,7 +227,8 @@ import UserNotifications
         }
         await service.sync(events: repeated)
         precondition(client.pending.count == 60)
-        precondition(service.statusMessage?.contains("暂未安排") == true)
+        precondition(service.statusMessage?.contains("预排") == true)
+        precondition(service.displayMessage(backgroundRefreshEnabled: true) == nil)
         for index in 10..<60 {
             let request = UNNotificationRequest(identifier: "other.\(index)", content: UNMutableNotificationContent(), trigger: nil)
             client.pending[request.identifier] = request
