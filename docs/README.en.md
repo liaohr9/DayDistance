@@ -3,14 +3,14 @@
 <h1>DayDistance · 日距</h1>
 <p><strong>Give anticipation a date. Give memories a measure.</strong></p>
 <p>A native macOS day counter with desktop widgets. Local, simple, and open source.</p>
-<p><a href="https://github.com/liaohr9/DayDistance/releases/tag/v1.17.1-preview.1">Download preview</a> · <a href="../README.md">中文</a> · <a href="BUILDING.md">Build guide</a></p>
+<p><a href="https://github.com/liaohr9/DayDistance/releases/tag/v1.18.0-preview.1">Download preview</a> · <a href="../README.md">中文</a> · <a href="BUILDING.md">Build guide</a></p>
 </div>
 
 ![Native event list with six fictional examples in English](images/events-en.png)
 
-> **1.17.1 (49) is an unnotarized developer preview for Apple Silicon.** The App ZIP uses ad hoc signing, without a Developer ID certificate or Apple notarization. macOS may block downloaded builds. This is not a notarized production release; wait for a notarized version or build from source if blocked. No system-security changes are required or recommended.
+> **1.18.0 (50) is an unnotarized developer preview for Intel and Apple Silicon.** The App ZIP uses ad hoc signing, without a Developer ID certificate or Apple notarization. macOS may block downloaded builds. This is not a notarized production release; wait for a notarized version or build from source if blocked. No system-security changes are required or recommended.
 
-This update reduces repeated backup/save work, bounds event undo history to the latest 100 operations and fixes incremental builds omitting the updater framework. See the [release notes and measurement limits](RELEASE-1.17.1.md).
+This update restores Intel support with Universal builds of the app, widget, CLI/MCP and updater helpers, preserving existing data and the performance improvements. See the [release notes and validation limits](RELEASE-1.18.0.md).
 
 ## App language
 
@@ -30,7 +30,7 @@ No accounts, subscriptions, advertisements, telemetry, or cloud sync. Events sta
 
 ## Get started
 
-1. Download the **Apple Silicon preview ZIP** from [Releases](https://github.com/liaohr9/DayDistance/releases/tag/v1.17.1-preview.1). Requires Apple Silicon (arm64) and macOS14+. Tested on macOS27; other supported versions still need runtime testing.
+1. Download the **Universal preview ZIP** from [Releases](https://github.com/liaohr9/DayDistance/releases/tag/v1.18.0-preview.1). Supports Intel (x86_64), Apple Silicon (arm64), and macOS14+. Physical Intel runtime acceptance remains separate. Tested on macOS27; other supported versions still need runtime testing.
 2. Move `日距.app` into Applications, subject to the preview limitations above.
 3. Press `⌘N`, enter a name and date, and save. Disable All Day to specify a time.
 4. Right-click the desktop, choose Edit Widgets, and add DayDistance. Edit the widget to select events and presentation.
