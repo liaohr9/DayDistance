@@ -21,8 +21,8 @@ def good_facts():
     for identifier in ["local.daydistance.mac", "local.daydistance.mac.widget"]:
         bundles.append({"identifier": identifier, "version": "1.3.3", "build": "7", "minimum_os": "14.0",
             "storage": "shared", "group": GROUP, "team": TEAM, "developer_id": True,
-            "runtime": True, "timestamp": True, "verified": True, "architectures": ["arm64"],
-            "binary_minimum_os": {"arm64": "14.0"},
+            "runtime": True, "timestamp": True, "verified": True, "architectures": ["arm64", "x86_64"],
+            "binary_minimum_os": {"arm64": "14.0", "x86_64": "14.0"},
             "entitlements": {"com.apple.security.app-sandbox": True, "com.apple.security.application-groups": [GROUP]}})
     bundles[0]["entitlements"]["com.apple.security.files.user-selected.read-write"] = True
     return {"bundles": bundles, "nested_valid": True, "unexpected_code": [], "debug_files": [],
@@ -40,7 +40,7 @@ class ReleaseTests(unittest.TestCase):
         for bundle, identifier in [(cls.app / "Contents/PlugIns/DayDistanceWidget.appex", release.IDENTIFIERS[1]), (cls.app, release.IDENTIFIERS[0])]:
             executable = bundle / "Contents/MacOS/Fixture"
             executable.parent.mkdir(parents=True, exist_ok=True)
-            subprocess.run(["/usr/bin/xcrun", "clang", "-arch", "arm64", "-mmacosx-version-min=14.0", str(source), "-o", str(executable)], check=True, capture_output=True)
+            subprocess.run(["/usr/bin/xcrun", "clang", "-arch", "arm64", "-arch", "x86_64", "-mmacosx-version-min=14.0", str(source), "-o", str(executable)], check=True, capture_output=True)
             info = {"CFBundleIdentifier": identifier, "CFBundleExecutable": "Fixture", "CFBundleVersion": "7",
                     "CFBundleShortVersionString": "1.3.3", "LSMinimumSystemVersion": "14.0",
                     "DayDistanceStorageMode": "shared", "DayDistanceAppGroup": GROUP}
@@ -53,7 +53,7 @@ class ReleaseTests(unittest.TestCase):
 
     def testSparkleMachLookupIsNarrowAndMainOnly(self):
         facts = good_facts()
-        facts["updater"] = {"required": True, "configured": True, "code": [{"path": path, "verified": True, "runtime": True, "timestamp": True, "architectures": ["arm64"]} for path in release.SPARKLE_CODE]}
+        facts["updater"] = {"required": True, "configured": True, "code": [{"path": path, "verified": True, "runtime": True, "timestamp": True, "architectures": ["arm64", "x86_64"]} for path in release.SPARKLE_CODE]}
         ent = facts["bundles"][0]["entitlements"]
         ent["com.apple.security.network.client"] = True
         ent["com.apple.security.temporary-exception.mach-lookup.global-name"] = ["local.daydistance.mac-spks", "local.daydistance.mac-spki"]
@@ -61,10 +61,10 @@ class ReleaseTests(unittest.TestCase):
         ent["com.apple.security.temporary-exception.mach-lookup.global-name"].append("other-service")
         self.assertTrue(release.evaluate(facts, TEAM, GROUP, "notarization-input")["errors"])
 
-    def testSparkleHelpersRequireSameTeamSignatureRuntimeAndArm64(self):
-        for field, value in [("verified", False), ("runtime", False), ("timestamp", False), ("architectures", ["x86_64", "arm64"])]:
+    def testSparkleHelpersRequireSameTeamSignatureRuntimeAndUniversal(self):
+        for field, value in [("verified", False), ("runtime", False), ("timestamp", False), ("architectures", ["arm64"])]:
             facts = good_facts()
-            code = [{"path": path, "verified": True, "runtime": True, "timestamp": True, "architectures": ["arm64"]} for path in release.SPARKLE_CODE]
+            code = [{"path": path, "verified": True, "runtime": True, "timestamp": True, "architectures": ["arm64", "x86_64"]} for path in release.SPARKLE_CODE]
             code[0][field] = value
             facts["updater"] = {"required": True, "configured": True, "code": code}
             self.assertTrue(release.evaluate(facts, TEAM, GROUP, "notarization-input")["errors"])
@@ -82,12 +82,12 @@ class ReleaseTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr.decode())
             self.assertEqual((extracted / "Contents/Info.plist").read_bytes(), (self.app / "Contents/Info.plist").read_bytes())
 
-    def testNativeInspectionReadsAppleSiliconDeploymentTarget(self):
+    def testNativeInspectionReadsBothDeploymentTargets(self):
         facts = release.inspect(self.app, TEAM, "notarization-input")
         self.assertTrue(facts["nested_valid"])
         for bundle in facts["bundles"]:
-            self.assertEqual(set(bundle["architectures"]), {"arm64"})
-            self.assertEqual(bundle["binary_minimum_os"], {"arm64": "14.0"})
+            self.assertEqual(set(bundle["architectures"]), {"arm64", "x86_64"})
+            self.assertEqual(bundle["binary_minimum_os"], {"arm64": "14.0", "x86_64": "14.0"})
             self.assertFalse(bundle["developer_id"])
 
     def testOutputDirectoryAliasCannotWriteInsideSourceApp(self):
@@ -110,8 +110,8 @@ class ReleaseTests(unittest.TestCase):
                 release.package(app, alias / "new-directory/candidate.zip", TEAM, GROUP, "notarization-input")
             self.assertEqual(list(app.iterdir()), [])
 
-    def testBinaryDeploymentTargetMustMatchAppleSilicon(self):
-        for minimum in [{"arm64": "26.0"}, {"arm64": "14.0", "x86_64": "14.0"}, {}]:
+    def testBinaryDeploymentTargetMustMatchBothArchitectures(self):
+        for minimum in [{"arm64": "26.0", "x86_64": "14.0"}, {"arm64": "14.0", "x86_64": "26.0"}, {"arm64": "14.0"}, {}]:
             facts = good_facts(); facts["bundles"][1]["binary_minimum_os"] = minimum
             self.assertTrue(release.evaluate(facts, TEAM, GROUP, "notarization-input")["errors"])
 
@@ -135,7 +135,7 @@ class ReleaseTests(unittest.TestCase):
                 self.assertEqual(release.evaluate(facts, TEAM, GROUP, "notarization-input")["status"], "blocked")
 
     def testVersionIdentifierArchitectureAndMinimumMismatchAreRejected(self):
-        for field, value in [("version", "1.2"), ("build", "6"), ("identifier", "other.app"), ("architectures", ["arm64", "x86_64"]), ("minimum_os", "26.0"), ("group", "group.local.daydistance.shared")]:
+        for field, value in [("version", "1.2"), ("build", "6"), ("identifier", "other.app"), ("architectures", ["x86_64"]), ("minimum_os", "26.0"), ("group", "group.local.daydistance.shared")]:
             facts = good_facts(); facts["bundles"][1][field] = value
             self.assertTrue(release.evaluate(facts, TEAM, GROUP, "notarization-input")["errors"], field)
 

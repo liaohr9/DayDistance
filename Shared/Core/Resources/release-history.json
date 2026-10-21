@@ -2,6 +2,30 @@
   "schemaVersion": 1,
   "releases": [
     {
+      "version": "1.18.0",
+      "build": 50,
+      "date": "2026-10-21",
+      "sections": [
+        {
+          "kind": "improved",
+          "items": [
+            {
+              "zh-Hans": "恢复 Intel Mac 支持，提供同时包含 arm64 与 x86_64 的通用安装包；主应用、小组件和更新助手均保留两种架构。",
+              "en": "Restore Intel Mac support with a Universal package containing arm64 and x86_64 for the app, widgets and updater helpers."
+            },
+            {
+              "zh-Hans": "CLI 与 MCP 使用同一通用可执行文件，无需按芯片选择安装包；继续支持 macOS 14 及更新系统。",
+              "en": "The CLI and MCP share the Universal executable. Use the same download on either chip family, with macOS 14 or later."
+            },
+            {
+              "zh-Hans": "保留 1.17.1 的性能优化、事件数据、列表和小组件设置；应用内更新沿用现有签名更新源。",
+              "en": "Retain the 1.17.1 performance improvements, events, lists and widget settings, using the existing signed in-app update feed."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.17.1",
       "build": 49,
       "date": "2026-10-20",

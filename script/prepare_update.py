@@ -48,7 +48,7 @@ def validate_feed(feed: Path, archive: Path, tag: str, info: dict):
     return signature
 
 def validate_architectures(app: Path):
-    """Preview packages must also contain only arm64, including updater helpers."""
+    """All update executables must support arm64 and x86_64, including helpers."""
     app=app.resolve(strict=True)
     binaries=[]
     for bundle in [app,app/'Contents/PlugIns/DayDistanceWidget.appex']:
@@ -60,8 +60,8 @@ def validate_architectures(app: Path):
         if not binary.resolve(strict=True).is_relative_to(app):
             raise ValueError('Executable escapes application: '+str(binary))
         architectures=subprocess.check_output(['lipo','-archs',str(binary)],text=True,timeout=30).split()
-        if architectures!=['arm64']:
-            raise ValueError('Only arm64 is allowed in update packages: '+str(binary))
+        if set(architectures)!={'arm64','x86_64'}:
+            raise ValueError('Update packages require arm64 and x86_64: '+str(binary))
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('app',type=Path);parser.add_argument('--output',required=True,type=Path);parser.add_argument('--tag',required=True);parser.add_argument('--sparkle-tools',required=True,type=Path);parser.add_argument('--preview',action='store_true');parser.add_argument('--team');parser.add_argument('--group')
@@ -84,12 +84,12 @@ def main():
     for f in app.rglob('*'):
         if f.name=='events.json':raise ValueError('User data must never be packaged')
     validate_architectures(app)
-    subprocess.run(['codesign','--verify','--deep','--strict',str(app)],check=True)
+    subprocess.run(['codesign','--verify','--deep','--strict','--all-architectures',str(app)],check=True)
     tools=args.sparkle_tools.resolve()/ 'bin'
     key=subprocess.check_output([str(tools/'generate_keys'),'--account',ACCOUNT,'-p'],text=True).strip()
     if key!=info.get('SUPublicEDKey'):raise ValueError('Signing account does not match embedded public key')
     output.mkdir(parents=True)
-    archive=output/('DayDistance-'+info['CFBundleShortVersionString']+'-macOS-arm64'+('-preview' if args.preview else '')+'.zip')
+    archive=output/('DayDistance-'+info['CFBundleShortVersionString']+'-macOS-universal'+('-preview' if args.preview else '')+'.zip')
     with tempfile.TemporaryDirectory(suffix='.noindex') as tmp:
         staged=Path(tmp)/'日距.app';subprocess.run(['ditto',str(app),str(staged)],check=True)
         subprocess.run(['ditto','-c','-k','--sequesterRsrc','--keepParent',str(staged),str(archive)],check=True)
@@ -100,7 +100,7 @@ def main():
     signature=validate_feed(feed,archive,args.tag,info)
     subprocess.run([str(tools/'sign_update'),'--account',ACCOUNT,'--verify',str(archive),signature],check=True)
     subprocess.run([str(tools/'sign_update'),'--account',ACCOUNT,'--verify',str(feed)],check=True)
-    manifest={'version':info['CFBundleShortVersionString'],'build':info['CFBundleVersion'],'tag':args.tag,'preview':args.preview,'notarized':not args.preview,'archive':archive.name,'bytes':archive.stat().st_size,'sha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'updateSignatureVerified':True,'feedSignatureVerified':True}
+    manifest={'version':info['CFBundleShortVersionString'],'build':info['CFBundleVersion'],'tag':args.tag,'preview':args.preview,'notarized':not args.preview,'architectures':['arm64','x86_64'],'archive':archive.name,'bytes':archive.stat().st_size,'sha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'updateSignatureVerified':True,'feedSignatureVerified':True}
     (output/'UPDATE_INFO.json').write_text(json.dumps(manifest,indent=2)+'\n');print(json.dumps(manifest,indent=2))
 
 if __name__=='__main__':main()

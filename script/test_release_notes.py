@@ -8,6 +8,12 @@ spec = importlib.util.spec_from_file_location('prepare_update', Path(__file__).w
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 class NotesTests(unittest.TestCase):
+    def test_universal_release_has_bilingual_notes(self):
+        notes = module.release_notes("1.18.0", "50")
+        for text in notes.values():
+            for value in ["Intel", "arm64", "x86_64", "MCP", "14"]:
+                self.assertIn(value, text)
+
     def test_performance_release_has_bilingual_notes(self):
         notes = module.release_notes("1.17.1", "49")
         for language in ["en", "zh-Hans"]:

@@ -31,9 +31,9 @@ def evaluate(facts, team, group, stage):
             if bundle.get(field) is not True: errors.append(label + ": " + field + " check failed")
         if bundle.get("team") != team: errors.append(label + ": team mismatch")
         if bundle.get("storage") != "shared" or bundle.get("group") != group: errors.append(label + ": shared storage/group mismatch")
-        if set(bundle.get("architectures", [])) != {"arm64"}: errors.append(label + ": Apple Silicon arm64 only required")
+        if set(bundle.get("architectures", [])) != {"arm64", "x86_64"}: errors.append(label + ": Universal arm64 and x86_64 required")
         if bundle.get("minimum_os") != "14.0": errors.append(label + ": minimum macOS changed")
-        if bundle.get("binary_minimum_os") != {"arm64": "14.0"}:
+        if bundle.get("binary_minimum_os") != {"arm64": "14.0", "x86_64": "14.0"}:
             errors.append(label + ": binary deployment targets must match macOS 14")
         for field in ["version", "build"]:
             if not bundle.get(field) or bundle.get(field) != bundles[0].get(field): errors.append(label + ": " + field + " mismatch")
@@ -53,7 +53,7 @@ def evaluate(facts, team, group, stage):
         code = updater.get("code", [])
         if not updater.get("configured") or {item.get("path") for item in code} != set(SPARKLE_CODE): errors.append("Updater configuration or helper inventory mismatch")
         for item in code:
-            if not all(item.get(field) for field in ["verified", "runtime", "timestamp"]) or item.get("architectures") != ["arm64"]:
+            if not all(item.get(field) for field in ["verified", "runtime", "timestamp"]) or set(item.get("architectures", [])) != {"arm64", "x86_64"}:
                 errors.append("Sparkle helper signing/runtime/architecture failed: " + item.get("path", "unknown"))
     if not facts.get("nested_valid"): errors.append("Nested code signature validation failed")
     if facts.get("unexpected_code"): errors.append("Unexpected nested code or escaping links: " + ", ".join(facts["unexpected_code"]))

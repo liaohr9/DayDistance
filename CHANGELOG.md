@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.18.0 — Intel support restored
+
+- Restore Universal arm64 + x86_64 builds for the app, widget and Sparkle helpers.
+- Share one download and executable for the app, CLI and MCP on both chip families.
+- Preserve existing storage, settings and the signed updater; keep macOS 14+.
+- See [release details and validation limits](docs/RELEASE-1.18.0.md). Still an unnotarized preview.
+
 ## 1.17.1 — storage work, bounded undo and incremental builds
 
 - Cache validated backup event counts without skipping content verification.

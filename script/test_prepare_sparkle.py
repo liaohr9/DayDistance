@@ -16,11 +16,29 @@ class FrameworkRecoveryTests(unittest.TestCase):
     def test_missing_embedded_copy_recovers_from_pinned_sibling_and_preserves_source(self):
         with tempfile.TemporaryDirectory(suffix='.noindex') as root:
             source,target=self.fixture(root)
-            with patch.object(module.subprocess,'check_output',return_value='arm64'),patch.object(module.subprocess,'run'):
+            with patch.object(module.subprocess,'check_output',return_value='arm64 x86_64'),patch.object(module.subprocess,'run'):
                 module.prepare(target,'-')
             self.assertEqual((target/'Versions/B/Sparkle').read_bytes(),(source/'Versions/B/Sparkle').read_bytes())
             self.assertFalse((target/'Versions/B/XPCServices/Downloader.xpc').exists())
             self.assertTrue((source/'Versions/B/XPCServices/Downloader.xpc').is_dir())
+    def test_prior_arm_only_embedded_copy_recovers_both_architectures(self):
+        import shutil
+        with tempfile.TemporaryDirectory(suffix='.noindex') as root:
+            source,target=self.fixture(root)
+            shutil.copytree(source,target)
+            (target/'Versions/B/Sparkle').write_bytes(b'thin prior build')
+            def architectures(args,**kwargs):
+                return 'arm64' if Path(args[-1]).read_bytes()==b'thin prior build' else 'x86_64 arm64'
+            with patch.object(module.subprocess,'check_output',side_effect=architectures),patch.object(module.subprocess,'run') as run:
+                module.prepare(target,'-')
+            self.assertEqual((target/'Versions/B/Sparkle').read_bytes(),(source/'Versions/B/Sparkle').read_bytes())
+            self.assertFalse(any(call.args[0][0]=='lipo' for call in run.call_args_list))
+    def test_incomplete_sibling_is_rejected_before_creating_target(self):
+        with tempfile.TemporaryDirectory(suffix='.noindex') as root:
+            source,target=self.fixture(root)
+            with patch.object(module.subprocess,'check_output',return_value='arm64'),self.assertRaises(ValueError):
+                module.prepare(target,'-')
+            self.assertFalse(target.exists())
     def test_mismatched_pinned_version_is_rejected_before_copy(self):
         with tempfile.TemporaryDirectory(suffix='.noindex') as root:
             source,target=self.fixture(root,version='9.9.9')

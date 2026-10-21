@@ -5,9 +5,9 @@ import XCTest
 final class ReleaseHistoryTests: XCTestCase {
     func testBundledHistoryIsNewestFirstAndExcludesUnreleasedLocalBuilds() throws {
         let entries = try ReleaseHistory.load()
-        XCTAssertEqual(entries.first?.version, "1.17.1")
-        XCTAssertEqual(entries.first?.build, 49)
-        XCTAssertEqual(entries.map(\.version), ["1.17.1", "1.17.0", "1.15.0", "1.14.0", "1.13.2", "1.13.1", "1.13.0", "1.8.1"])
+        XCTAssertEqual(entries.first?.version, "1.18.0")
+        XCTAssertEqual(entries.first?.build, 50)
+        XCTAssertEqual(entries.map(\.version), ["1.18.0", "1.17.1", "1.17.0", "1.15.0", "1.14.0", "1.13.2", "1.13.1", "1.13.0", "1.8.1"])
         XCTAssertEqual(Set(entries.map(\.id)).count, entries.count)
         XCTAssertEqual(entries.map(\.build), entries.map(\.build).sorted(by: >))
     }

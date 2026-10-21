@@ -4,7 +4,7 @@
 
 ## 正式配置
 
-主应用与扩展的 `Release` 使用 `Config/Release.xcconfig`：Developer ID Application、Hardened Runtime、禁止注入调试基础 entitlement、shared 存储；保持 macOS 14、仅 Apple Silicon（arm64） 和相同版本。主应用使用 `Config/App.entitlements`，含 sandbox、App Group 及用户选择文件读写权限；组件使用 `Config/Shared.entitlements`，没有文件面板权限。`DebugLocal` 的本地数据路径和签名方式不受此配置影响。`DayDistanceSigned` scheme 的 Debug 配置仅供开发，不用作独立发行。
+主应用与扩展的 `Release` 使用 `Config/Release.xcconfig`：Developer ID Application、Hardened Runtime、禁止注入调试基础 entitlement、shared 存储；保持 macOS 14、Universal（arm64 + x86_64） 和相同版本。主应用使用 `Config/App.entitlements`，含 sandbox、App Group 及用户选择文件读写权限；组件使用 `Config/Shared.entitlements`，没有文件面板权限。`DebugLocal` 的本地数据路径和签名方式不受此配置影响。`DayDistanceSigned` scheme 的 Debug 配置仅供开发，不用作独立发行。
 
 Release 的 App Group 为 `<真实10位TeamID>.local.daydistance.shared`，取自 `DEVELOPMENT_TEAM`。Apple 允许 macOS 应用使用团队前缀 App Group，不要求注册此组或使用 provisioning profile；本应用仅支持 macOS，也不共享钥匙串，采用此路线。实际签名团队、两份 entitlement 和 Info.plist 的值必须完全一致。若以后增加其他 Apple 平台或共享钥匙串，需另行改用注册的 `group.` 标识并验证 profile；当前预检会拒绝该不同路线。
 
@@ -17,7 +17,7 @@ Release 的 App Group 为 `<真实10位TeamID>.local.daydistance.shared`，取�
 以下是供所有者手动执行的归档示例，先填入自己的真实 Team ID。归档和导出都在 `.noindex` 目录，避免 Spotlight 重复应用；不使用 Xcode Run 启动候选。归档使用全新目录，不覆盖现有产物。
 
 ```bash
-export DEVELOPER_DIR='/Volumes/haoran 1/Applications/Xcode.app/Contents/Developer'
+export DEVELOPER_DIR="$(xcode-select -p)"
 RELEASE_TEAM='填入真实10位TeamID'
 xcodebuild -project DayDistance.xcodeproj -scheme DayDistance \
   -configuration Release -destination 'generic/platform=macOS' \
@@ -74,14 +74,14 @@ python3 script/prepare_release.py "$RELEASE_APP" \
 ## 回归证据
 
 ```bash
-DEVELOPER_DIR='/Volumes/haoran 1/Applications/Xcode.app/Contents/Developer' python3 script/test_release.py
+python3 script/test_release.py
 ```
 
 测试使用临时 universal Mach-O 嵌套 app 和 ad hoc 签名，不依赖已安装应用或用户文件。它验证原生检查/ZIP 解压仍保留严格签名，以及错误条件拒绝；模拟的通过政策事实不能代替真实 Developer ID 成功路径。此回归已接入 `build_and_run.sh` 的构建前检查。验证记录在 `验证记录.md` 与 `Validation/release-gate-*`。
 
 ## GitHub 应用内更新（Sparkle 2.10.0）
 
-SPM 固定版本与 Package.resolved 应一并保留。仅主应用链接 Sparkle；构建阶段裁掉框架/安装器的 Intel slice，移除未使用的 Downloader.xpc，再按嵌套顺序重新签名。主应用运行时沙盒保持开启；需要网络 client 与文档要求的两项、固定应用标识的 mach lookup。组件权限不变。该框架处理 ZIP 校验、替换与重启，应用委托在编辑/文件操作期间阻止检查与延后安装。
+SPM 固定版本与 Package.resolved 应一并保留。仅主应用链接 Sparkle；构建阶段保留框架/安装器的 arm64 和 x86_64，移除未使用的 Downloader.xpc，再按嵌套顺序重新签名；打包前逐个检查两种架构。主应用运行时沙盒保持开启；需要网络 client 与文档要求的两项、固定应用标识的 mach lookup。组件权限不变。该框架处理 ZIP 校验、替换与重启，应用委托在编辑/文件操作期间阻止检查与延后安装。
 
 更新源为 `https://raw.githubusercontent.com/liaohr9/DayDistance/main/appcast.xml`。`SURequireSignedFeed` 和 `SUVerifyUpdateBeforeExtraction` 均开启；不允许自动下载安装。只在应用正常运行时启动，提醒专用后台进程不启动。默认检查周期为一天，开关直接使用 Sparkle 持久化设置。
 
